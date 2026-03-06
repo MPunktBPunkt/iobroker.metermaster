@@ -1,0 +1,153 @@
+{
+  "common": {
+    "name": "metermaster",
+    "version": "0.1.0",
+    "title": "MeterMaster",
+    "titleLang": {
+      "de": "MeterMaster",
+      "en": "MeterMaster"
+    },
+    "desc": {
+      "de": "Empfängt Zählerablesungen von der MeterMaster Android-App und speichert sie als ioBroker-Datenpunkte mit korrekten Zeitstempeln.",
+      "en": "Receives meter readings from the MeterMaster Android app and stores them as ioBroker states with correct timestamps."
+    },
+    "authors": [
+      "MeterMaster"
+    ],
+    "keywords": [
+      "meter",
+      "reading",
+      "metermaster",
+      "smart metering"
+    ],
+    "license": "MIT",
+    "type": "general",
+    "main": "main.js",
+    "icon": "metermaster.png",
+    "enabled": true,
+    "mode": "daemon",
+    "platform": "Javascript/Node.js",
+    "materialize": false,
+    "noConfig": false,
+    "adminUI": {
+      "config": "json"
+    },
+    "jsonConfig": {
+      "i18n": false,
+      "items": {
+        "port": {
+          "type": "number",
+          "label": "HTTP Port",
+          "help": "Port auf dem der Adapter auf Ablesungen wartet (Standard: 8089)",
+          "min": 1024,
+          "max": 65535,
+          "default": 8089,
+          "sm": 6
+        },
+        "user": {
+          "type": "text",
+          "label": "Benutzername",
+          "help": "Wird in der MeterMaster App unter Einstellungen → ioBroker eingetragen",
+          "default": "metermaster",
+          "sm": 6
+        },
+        "password": {
+          "type": "password",
+          "label": "Passwort",
+          "help": "Mindestens 8 Zeichen empfohlen",
+          "default": "",
+          "sm": 6
+        },
+        "keepHistory": {
+          "type": "number",
+          "label": "Historie aufbewahren (Einträge pro Zähler)",
+          "help": "0 = unbegrenzt",
+          "default": 0,
+          "sm": 6
+        },
+        "verboseLogging": {
+          "type": "checkbox",
+          "label": "Ausführliches Logging",
+          "help": "Alle eingehenden Verbindungen, Datenpunkte und Sync-Vorgänge im Log-Viewer protokollieren",
+          "default": true,
+          "sm": 12
+        },
+        "logBufferSize": {
+          "type": "number",
+          "label": "Log-Puffer (Einträge)",
+          "help": "Maximale Anzahl gespeicherter Log-Einträge im Log-Viewer (Standard: 500)",
+          "min": 50,
+          "max": 5000,
+          "default": 500,
+          "sm": 6
+        }
+      }
+    },
+    "news": {
+      "0.1.0": {
+        "en": "Initial release – HTTP receiver with Web-UI, Log-Viewer, Data-Tab and App-Import",
+        "de": "Erstveröffentlichung – HTTP-Empfänger mit Web-UI, Log-Viewer, Daten-Tab und App-Import"
+      }
+    },
+    "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",
+    "loglevel": "info",
+    "author": "MPunktBPunkt <https://github.com/MPunktBPunkt>"
+  },
+  "native": {
+    "port": 8089,
+    "user": "metermaster",
+    "password": "",
+    "keepHistory": 0,
+    "verboseLogging": true
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Informationen"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "name": "Verbunden",
+        "type": "boolean",
+        "role": "indicator.connected",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.lastSync",
+      "type": "state",
+      "common": {
+        "name": "Letzter Sync",
+        "type": "string",
+        "role": "value.datetime",
+        "read": true,
+        "write": false,
+        "def": ""
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.readingsReceived",
+      "type": "state",
+      "common": {
+        "name": "Empfangene Ablesungen gesamt",
+        "type": "number",
+        "role": "value",
+        "read": true,
+        "write": false,
+        "def": 0
+      },
+      "native": {}
+    }
+  ]
+}
