@@ -1,6 +1,8 @@
 # ioBroker MeterMaster Adapter
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+![MeterMaster Banner](github-banner.svg)
+
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -192,15 +194,21 @@ POST http://host:8089/api/import
 
 ## Update
 
-```bash
-# Von GitHub aktualisieren
-iobroker upgrade metermaster https://github.com/MPunktBPunkt/iobroker.metermaster
+### Option A – über die Web-UI (empfohlen)
 
-# Adapter neu starten
+Im Browser `http://IP:8089/` öffnen → Tab **⚙️ System** → **„Auf Updates prüfen"**.  
+Ist eine neue Version auf GitHub verfügbar, erscheint der Button **„Update installieren"** — ein Klick genügt. Der Adapter aktualisiert sich selbst und startet automatisch neu.
+
+### Option B – Kommandozeile
+
+```bash
+iobroker upgrade metermaster https://github.com/MPunktBPunkt/iobroker.metermaster
 iobroker restart metermaster
 ```
 
-Bei manueller Installation neue Dateien einfach überschreiben, dann:
+### Option C – manuell (offline)
+
+Neue Dateien per USB/SCP überschreiben, dann:
 ```bash
 cd /opt/iobroker/node_modules/iobroker.metermaster
 npm install
@@ -210,6 +218,13 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.2.0 (2026-03-07)
+- System-Tab in der Web-UI mit GitHub-Versionscheck
+- Ein-Klick-Update und automatischer Neustart über die Web-UI
+- `/api/version` – vergleicht installierte Version mit aktuellem GitHub-Release
+- `/api/update` – führt `iobroker upgrade` aus und startet den Adapter neu
+- MQTT: Hinweis korrigiert – ioBroker MQTT-Adapter übernimmt `ts` nicht automatisch
 
 ### 0.1.0 (2026-03-06)
 - Erstveröffentlichung

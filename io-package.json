@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -87,6 +87,10 @@
       "0.1.0": {
         "en": "Initial release – HTTP receiver with Web-UI, Log-Viewer, Data-Tab and App-Import",
         "de": "Erstveröffentlichung – HTTP-Empfänger mit Web-UI, Log-Viewer, Daten-Tab und App-Import"
+      },
+      "0.2.0": {
+        "en": "System tab with GitHub update check and one-click update via Web-UI",
+        "de": "System-Tab mit GitHub-Versionscheck und Ein-Klick-Update über die Web-UI"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",

@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+  <defs>
+    <!-- Hintergrund-Gradient: BgDeep → BgSurface2 (exakt aus Colors.xaml) -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#3D2070"/>
+      <stop offset="55%"  stop-color="#1A1430"/>
+      <stop offset="100%" stop-color="#0F0B1A"/>
+    </linearGradient>
+    <!-- Glow für Logo -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Logo-Gradients -->
+    <linearGradient id="lbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#3b1fa8"/>
+      <stop offset="100%" stop-color="#1a0e5a"/>
+    </linearGradient>
+    <linearGradient id="larc" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+    <filter id="lglow">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Dekorativer Verlauf rechts -->
+    <radialGradient id="glowRight" cx="85%" cy="50%" r="35%">
+      <stop offset="0%"   stop-color="#7B54C4" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#7B54C4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Hintergrund -->
+  <rect width="1200" height="300" fill="url(#bgGrad)"/>
+  <rect width="1200" height="300" fill="url(#glowRight)"/>
+
+  <!-- Feiner unterer Rahmen -->
+  <line x1="0" y1="299" x2="1200" y2="299" stroke="#3D2E6A" stroke-width="1.5"/>
+
+  <!-- Dezente Gitterlinien -->
+  <g stroke="#2A2050" stroke-width="0.6" opacity="0.5">
+    <line x1="0"    y1="100" x2="1200" y2="100"/>
+    <line x1="0"    y1="200" x2="1200" y2="200"/>
+    <line x1="200"  y1="0"   x2="200"  y2="300"/>
+    <line x1="400"  y1="0"   x2="400"  y2="300"/>
+    <line x1="600"  y1="0"   x2="600"  y2="300"/>
+    <line x1="800"  y1="0"   x2="800"  y2="300"/>
+    <line x1="1000" y1="0"   x2="1000" y2="300"/>
+  </g>
+
+  <!-- ═══ LOGO (108×108 skaliert auf 120×120, zentriert bei y=90) ═══ -->
+  <g transform="translate(72, 90) scale(1.11)">
+    <rect width="108" height="108" rx="24" fill="url(#lbg)"/>
+    <circle cx="54" cy="56" r="37" fill="none" stroke="#512BD4" stroke-width="2.5" opacity="0.6"/>
+    <circle cx="54" cy="56" r="33" fill="#1e1252"/>
+    <path d="M 37.5 84.6 A 33 33 0 1 1 70.5 84.6" fill="none" stroke="#2d1b80" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M 37.5 84.6 A 33 33 0 0 1 54 23"     fill="none" stroke="url(#larc)" stroke-width="5.5" stroke-linecap="round" filter="url(#lglow)"/>
+    <g stroke="#6d4fc4" stroke-linecap="round">
+      <line x1="54" y1="25" x2="54" y2="30" stroke-width="2"   transform="rotate(-120 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="28" stroke-width="1.2" transform="rotate(-96 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="28" stroke-width="1.2" transform="rotate(-72 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="30" stroke-width="2"   transform="rotate(-48 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="28" stroke-width="1.2" transform="rotate(-24 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="30" stroke-width="2"   transform="rotate(0 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="28" stroke-width="1.2" transform="rotate(24 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="30" stroke-width="2"   transform="rotate(48 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="28" stroke-width="1.2" transform="rotate(72 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="28" stroke-width="1.2" transform="rotate(96 54 56)"/>
+      <line x1="54" y1="25" x2="54" y2="30" stroke-width="2"   transform="rotate(120 54 56)"/>
+    </g>
+    <g transform="rotate(0 54 56)">
+      <line x1="54" y1="56" x2="54" y2="29" stroke="white"   stroke-width="2.2" stroke-linecap="round" filter="url(#lglow)"/>
+      <line x1="54" y1="56" x2="54" y2="63" stroke="#512BD4" stroke-width="2.2" stroke-linecap="round"/>
+    </g>
+    <circle cx="54" cy="56" r="5" fill="#2d1b80" stroke="#7c3aed" stroke-width="1.5"/>
+    <circle cx="54" cy="56" r="2" fill="#c4b5fd"/>
+    <text x="54" y="93" font-family="Arial,sans-serif" font-weight="700" font-size="10" fill="#a78bfa" text-anchor="middle" letter-spacing="1.5">MM</text>
+  </g>
+
+  <!-- ═══ TITELTEXT ═══ -->
+  <!-- "MeterMaster" -->
+  <text x="230" y="138"
+        font-family="'Segoe UI', system-ui, Arial, sans-serif"
+        font-weight="700" font-size="64"
+        fill="#C8B8FF" letter-spacing="-0.5">MeterMaster</text>
+
+  <!-- "ioBroker Adapter" -->
+  <text x="234" y="178"
+        font-family="'Segoe UI', system-ui, Arial, sans-serif"
+        font-weight="400" font-size="26"
+        fill="#9585BB" letter-spacing="3">ioBroker Adapter</text>
+
+  <!-- Trennlinie -->
+  <line x1="230" y1="196" x2="820" y2="196" stroke="#3D2E6A" stroke-width="1"/>
+
+  <!-- Feature-Punkte -->
+  <text font-family="'Segoe UI', system-ui, Arial, sans-serif" font-size="17" fill="#9585BB">
+    <tspan x="234" dy="30">📡</tspan>
+    <tspan dx="6" fill="#E8E0FF">HTTP-Empfänger</tspan>
+    <tspan dx="22" fill="#5E4D8A">·</tspan>
+    <tspan dx="10">🕐</tspan>
+    <tspan dx="6" fill="#E8E0FF">Korrekte Zeitstempel</tspan>
+    <tspan dx="22" fill="#5E4D8A">·</tspan>
+    <tspan dx="10">📈</tspan>
+    <tspan dx="6" fill="#E8E0FF">Historie</tspan>
+    <tspan dx="22" fill="#5E4D8A">·</tspan>
+    <tspan dx="10">🌐</tspan>
+    <tspan dx="6" fill="#E8E0FF">Web-UI</tspan>
+    <tspan dx="22" fill="#5E4D8A">·</tspan>
+    <tspan dx="10">⚙️</tspan>
+    <tspan dx="6" fill="#E8E0FF">Auto-Update</tspan>
+  </text>
+
+  <!-- Version Badge -->
+  <rect x="234" y="258" width="110" height="28" rx="14"
+        fill="#7B54C4" fill-opacity="0.25"
+        stroke="#7B54C4" stroke-width="1.2"/>
+  <text x="289" y="276"
+        font-family="'Segoe UI', system-ui, Arial, sans-serif"
+        font-weight="700" font-size="13.5"
+        fill="#C8B8FF" text-anchor="middle" letter-spacing="0.5">v0.2.0</text>
+
+  <!-- MIT Badge -->
+  <rect x="356" y="258" width="84" height="28" rx="14"
+        fill="#4CAF50" fill-opacity="0.18"
+        stroke="#4CAF50" stroke-width="1.2"/>
+  <text x="398" y="276"
+        font-family="'Segoe UI', system-ui, Arial, sans-serif"
+        font-weight="700" font-size="13.5"
+        fill="#A5D6A7" text-anchor="middle" letter-spacing="0.5">MIT</text>
+
+  <!-- Node.js Badge -->
+  <rect x="452" y="258" width="106" height="28" rx="14"
+        fill="#2196F3" fill-opacity="0.15"
+        stroke="#2196F3" stroke-width="1.2"/>
+  <text x="505" y="276"
+        font-family="'Segoe UI', system-ui, Arial, sans-serif"
+        font-weight="700" font-size="13.5"
+        fill="#90CAF9" text-anchor="middle" letter-spacing="0.5">Node ≥16</text>
+
+</svg>
