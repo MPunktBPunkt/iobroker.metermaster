@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.3.0';
+const CURRENT_VERSION = '0.3.1';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -1269,11 +1269,11 @@ async function doUpdate() {
     const r = await fetch('/api/update', { method: 'POST' });
     const d = await r.json();
     if (d.ok) {
-      outBox.textContent = '\u2705 Update erfolgreich.\nAdapter wird neu gestartet\u2026\n\n' + (d.output||'');
+      outBox.textContent = '\u2705 Update erfolgreich.' + String.fromCharCode(10) + 'Adapter wird neu gestartet\u2026' + String.fromCharCode(10,10) + (d.output||'');
       document.getElementById('sv-status').innerHTML = '<span class="badge-ok">\u2713 Neu gestartet</span>';
-      setTimeout(() => { outBox.textContent += '\n\u27F3 Seite wird neu geladen\u2026'; location.reload(); }, 8000);
+      setTimeout(() => { outBox.textContent += String.fromCharCode(10) + '\u27F3 Seite wird neu geladen\u2026'; location.reload(); }, 8000);
     } else {
-      outBox.textContent = '\u274C Fehler:\n' + (d.error||'') + '\n\n' + (d.output||'');
+      outBox.textContent = '\u274C Fehler:' + String.fromCharCode(10) + (d.error||'') + String.fromCharCode(10,10) + (d.output||'');
       btn.style.display = ''; spin.style.display = 'none';
     }
   } catch(e) {

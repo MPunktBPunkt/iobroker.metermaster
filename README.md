@@ -2,7 +2,7 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -218,6 +218,10 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.3.1 (2026-03-07)
+- **Bugfix:** Literal-Zeilenumbrüche in `'...'`-String-Literalen innerhalb des Node.js-Template-Literals → `SyntaxError: Unexpected string` auf Browser-Zeile 543
+- Fix: `String.fromCharCode(10)` statt `\n` in den `doUpdate`-Strings
 
 ### 0.3.0 (2026-03-07)
 - **Bugfix:** Korrekte Unicode-Escapes im Browser-JS: Emojis > U+FFFF als Surrogate-Pairs (`\uD83D\uDCC5`), `U+FE0F` aus `TYPE_ICONS` entfernt — `SyntaxError: Unexpected string` vollständig behoben
