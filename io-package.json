@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -23,7 +23,7 @@
     "license": "MIT",
     "type": "general",
     "main": "main.js",
-    "icon": "metermaster.png",
+    "icon": "metermaster.svg",
     "enabled": true,
     "mode": "daemon",
     "platform": "Javascript/Node.js",
@@ -88,9 +88,9 @@
         "en": "Initial release – HTTP receiver with Web-UI, Log-Viewer, Data-Tab and App-Import",
         "de": "Erstveröffentlichung – HTTP-Empfänger mit Web-UI, Log-Viewer, Daten-Tab und App-Import"
       },
-      "0.2.0": {
-        "en": "System tab with GitHub update check and one-click update via Web-UI",
-        "de": "System-Tab mit GitHub-Versionscheck und Ein-Klick-Update über die Web-UI"
+      "0.2.1": {
+        "en": "System tab with GitHub update check and one-click update; fixed adapter.start() incompatibility with adapter-core v3.x; added admin/ folder (config page & icon)",
+        "de": "System-Tab mit GitHub-Versionscheck + Ein-Klick-Update; adapter.start() für adapter-core v3.x gefixt; admin/-Ordner ergänzt (Konfig-Seite + Icon)"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",

@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.0';
+const CURRENT_VERSION = '0.2.1';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -1247,5 +1247,6 @@ function sanitize(input) {
 function readBody(req, cb) { let b=''; req.on('data',c=>{b+=c.toString();}); req.on('end',()=>cb(b)); }
 function sendJson(res, status, data) { res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'}); res.end(JSON.stringify(data)); }
 
-if (require.main === module) { adapter.start(); }
+// adapter-core v3.x startet automatisch bei new utils.Adapter() — kein .start() nötig
+if (require.main === module) { }
 module.exports = adapter;

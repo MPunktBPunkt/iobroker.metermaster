@@ -1,0 +1,51 @@
+{
+  "i18n": false,
+  "items": {
+    "port": {
+      "type": "number",
+      "label": "HTTP Port",
+      "help": "Port auf dem der Adapter auf Ablesungen wartet (Standard: 8089)",
+      "min": 1024,
+      "max": 65535,
+      "default": 8089,
+      "sm": 6
+    },
+    "user": {
+      "type": "text",
+      "label": "Benutzername",
+      "help": "Wird in der MeterMaster App unter Einstellungen → ioBroker eingetragen",
+      "default": "metermaster",
+      "sm": 6
+    },
+    "password": {
+      "type": "password",
+      "label": "Passwort",
+      "help": "Mindestens 8 Zeichen empfohlen",
+      "default": "",
+      "sm": 6
+    },
+    "keepHistory": {
+      "type": "number",
+      "label": "Historie aufbewahren (Einträge pro Zähler)",
+      "help": "0 = unbegrenzt",
+      "default": 0,
+      "sm": 6
+    },
+    "verboseLogging": {
+      "type": "checkbox",
+      "label": "Ausführliches Logging",
+      "help": "Alle eingehenden Verbindungen, Datenpunkte und Sync-Vorgänge im Log-Viewer protokollieren",
+      "default": true,
+      "sm": 12
+    },
+    "logBufferSize": {
+      "type": "number",
+      "label": "Log-Puffer (Einträge)",
+      "help": "Maximale Anzahl gespeicherter Log-Einträge im Log-Viewer (Standard: 500)",
+      "min": 50,
+      "max": 5000,
+      "default": 500,
+      "sm": 6
+    }
+  }
+}
