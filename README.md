@@ -2,7 +2,7 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.2.7-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.2.8-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -218,6 +218,10 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.2.8 (2026-03-07)
+- **Bugfix:** Externe `/app.js` rückgängig — relative URL wurde vom Browser gegen den ioBroker-Admin-Proxy (Port 8081) aufgelöst, nicht gegen Port 8089 → `ERR_CONNECTION_REFUSED`
+- Zurück zu Inline-Script; alle top-level `addEventListener`-Aufrufe sind bereits in `initTabs()` (keine Crash-Möglichkeit)
 
 ### 0.2.7 (2026-03-07)
 - **Bugfix:** JavaScript aus `<script>`-Block in separate `/app.js`-Route ausgelagert — der ioBroker-Admin-Proxy blockiert Inline-Scripts per CSP, externe Script-Dateien sind erlaubt

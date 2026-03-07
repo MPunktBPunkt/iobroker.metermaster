@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.7",
+    "version": "0.2.8",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -115,6 +115,10 @@
       "0.2.7": {
         "en": "Bugfix: JavaScript moved from inline <script> to external /app.js — fixes CSP blocking in ioBroker admin proxy (tabs non-functional, data tab always empty)",
         "de": "Bugfix: JavaScript aus inline <script> in externe /app.js verschoben — behebt CSP-Blockierung durch ioBroker-Admin-Proxy (Tabs ohne Funktion, Daten-Tab leer)"
+      },
+      "0.2.8": {
+        "en": "Bugfix: reverted external app.js — relative URL resolved against ioBroker admin proxy, not port 8089; back to inline script (no top-level crash possible)",
+        "de": "Bugfix: externe app.js rückgängig — relative URL wurde gegen ioBroker-Admin-Proxy aufgelöst, nicht Port 8089; zurück zu Inline-Script (kein top-level Crash möglich)"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",

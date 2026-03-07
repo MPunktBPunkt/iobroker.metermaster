@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.7';
+const CURRENT_VERSION = '0.2.8';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -159,7 +159,6 @@ function startHttpServer() {
         if (req.method === 'GET'  && url === '/api/logs')  { serveLogsJson(req, res);  return; }
         if (req.method === 'GET'  && url === '/api/stats') { serveStats(res);           return; }
         if (req.method === 'GET'  && url === '/api/data')    { serveDataJson(res);        return; }
-        if (req.method === 'GET'  && url === '/app.js')      { serveAppJs(res, port);    return; }
         if (req.method === 'GET'  && url === '/api/version') { serveVersion(res);        return; }
         if (req.method === 'POST' && url === '/api/update')  { handleUpdate(req, res);   return; }
 
@@ -493,15 +492,6 @@ function compareVersions(a, b) {
 }
 
 
-function serveAppJs(res, port) {
-    const js = buildAppJs(port);
-    res.writeHead(200, {
-        'Content-Type': 'application/javascript; charset=utf-8',
-        'Cache-Control': 'no-cache'
-    });
-    res.end(js);
-}
-
 async function serveVersion(res) {
     try {
         const latest        = await fetchGitHubVersion();
@@ -529,349 +519,6 @@ function handleUpdate(req, res) {
 }
 
 
-// ─── Browser-App-JavaScript (wird über /app.js ausgeliefert) ────────────────
-function buildAppJs(port) {
-    return `
-const TYPE_ICONS = ${JSON.stringify(TYPE_ICONS)};
-
-// ── Tab-Navigation ────────────────────────────────────────────────────────────
-window.showTab = function showTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  document.getElementById('page-'+name).classList.add('active');
-  if (name === 'data')   fetchData();
-  if (name === 'system') checkVersion();
-}
-
-// ── Hilfsfunktionen ───────────────────────────────────────────────────────────
-const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const fmtDt  = ts => new Date(ts).toLocaleString('de-DE',{hour12:false});
-const fmtUp  = s  => Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m '+Math.floor(s%60)+'s';
-const fmtLog = ts => {
-  const d = new Date(ts);
-  return d.toLocaleTimeString('de-DE',{hour12:false})+'.'+String(d.getMilliseconds()).padStart(3,'0');
-};
-
-// ── Stats ─────────────────────────────────────────────────────────────────────
-async function fetchStats() {
-  try {
-    const d = await fetch('/api/stats').then(r => r.json());
-    document.getElementById('st-rx').textContent = d.readingsReceived;
-    document.getElementById('st-lg').textContent = d.logEntries;
-    document.getElementById('st-up').textContent = fmtUp(d.uptime);
-    document.getElementById('st-live').textContent = '● Live';
-    document.getElementById('st-live').style.color = 'var(--accent)';
-  } catch {
-    document.getElementById('st-live').textContent = '✗ Getrennt';
-    document.getElementById('st-live').style.color = 'var(--danger)';
-  }
-}
-
-// ── DATEN-TAB ─────────────────────────────────────────────────────────────────
-async function fetchData() {
-  try {
-    const d   = await fetch('/api/data').then(r => r.json());
-    const con = document.getElementById('data-container');
-    if (!d.data || !Object.keys(d.data).length) {
-      con.innerHTML = '<div class="empty-state"><div class="ico">📡</div><p>Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App.</p></div>';
-      return;
-    }
-    let html = '';
-    for (const [house, apts] of Object.entries(d.data)) {
-      html += '<div class="house-block"><div class="house-title">🏠 '+esc(house)+'</div>';
-      for (const [apt, meters] of Object.entries(apts)) {
-        html += '<div class="apt-block"><div class="apt-title">🏘 '+esc(apt)+'</div><div class="meters-grid">';
-        for (const [key, m] of Object.entries(meters)) {
-          const icon   = TYPE_ICONS[m.typeName] || '📟';
-          const histId = 'h-'+CSS.escape(house+apt+key);
-          const rows   = (m.history||[]).slice().reverse().map(h =>
-            '<div class="hist-row"><span>'+esc(fmtDt(h.ts))+'</span><span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span></div>'
-          ).join('');
-          html +=
-            '<div class="meter-card">'+
-              '<div class="mc-head">'+
-                '<div class="mc-name">'+icon+' '+esc(key)+'</div>'+
-                '<div class="mc-badge">'+esc(m.typeName||'?')+'</div>'+
-              '</div>'+
-              '<div class="mc-value-row">'+
-                '<span class="mc-value">'+(m.latest !== undefined ? m.latest : '–')+'</span>'+
-                '<span class="mc-unit">'+esc(m.unit||'')+'</span>'+
-              '</div>'+
-              '<div class="mc-date">📅 '+esc(m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '–')+'</div>'+
-              (rows ?
-                '<button class="mc-hist-toggle" onclick="toggleHist(\''+histId+'\')">📈 Verlauf ('+(m.history||[]).length+')</button>'+
-                '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
-              : '')+
-            '</div>';
-        }
-        html += '</div></div>';
-      }
-      html += '</div>';
-    }
-    con.innerHTML = html;
-  } catch(e) {
-    document.getElementById('data-container').innerHTML =
-      '<div class="empty-state"><div class="ico">⚠️</div><p>Fehler: '+esc(e.message)+'</p></div>';
-  }
-}
-
-function toggleHist(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.toggle('open');
-}
-
-// ── IMPORT-TAB ────────────────────────────────────────────────────────────────
-let importData = null;
-let dz = null; // wird in initDropzone() gesetzt
-
-function loadFile(file) {
-  if (!file) return;
-  const r = new FileReader();
-  r.onload = e => {
-    try { importData = JSON.parse(e.target.result); showPreview(importData, file.name); }
-    catch { showResult('err', '❌ Ungültige JSON-Datei'); }
-  };
-  r.readAsText(file);
-}
-
-function showPreview(d, fname) {
-  const valid = !!(d.Apartments && d.Meters && d.Readings);
-  document.getElementById('preview-content').innerHTML =
-    prow('Datei',      esc(fname)) +
-    prow('Schema',     d.SchemaVersion||'?') +
-    prow('Wohnungen',  (d.Apartments||[]).length) +
-    prow('Zähler',     (d.Meters||[]).length) +
-    prow('Ablesungen', (d.Readings||[]).length) +
-    prow('Kompatibel', valid ? '✅ Ja' : '❌ Nein – Pflichtfelder fehlen');
-  document.getElementById('preview-box').style.display = 'block';
-  document.getElementById('imp-btn').disabled = !valid;
-}
-const prow = (l,v) => '<div class="preview-row"><span>'+l+'</span><b>'+v+'</b></div>';
-
-async function doImport() {
-  if (!importData) return;
-  const house = document.getElementById('imp-house').value.trim() || 'MeinHaus';
-  const btn   = document.getElementById('imp-btn');
-  btn.disabled = true; btn.textContent = '⏳ Importiere…';
-  try {
-    const r = await fetch('/api/import', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({...importData, HouseName: house})
-    });
-    const d = await r.json();
-    if (d.ok) { showResult('ok',   '✅ '+d.summary); fetchData(); fetchStats(); }
-    else       { showResult('warn','⚠️ '+d.summary+(d.errors.length ? '<br>'+d.errors.slice(0,5).map(esc).join('<br>') : '')); }
-  } catch(e) { showResult('err', '❌ Netzwerkfehler: '+esc(e.message)); }
-  finally { btn.disabled = false; btn.textContent = '⬆ Importieren'; }
-}
-function showResult(type, msg) {
-  const rb = document.getElementById('imp-result');
-  rb.className = 'result-box '+type; rb.innerHTML = msg; rb.style.display = 'block';
-}
-function clearImport() {
-  importData = null;
-  document.getElementById('file-in').value = '';
-  document.getElementById('preview-box').style.display  = 'none';
-  document.getElementById('imp-result').style.display   = 'none';
-  document.getElementById('imp-btn').disabled = true;
-}
-
-// ── LOG-TAB ───────────────────────────────────────────────────────────────────
-let newestTs = 0, displayed = [], logTimer;
-const lc  = () => document.getElementById('lc');
-const gf  = () => ({
-  level: document.getElementById('fl').value,
-  cat:   document.getElementById('fc').value,
-  txt:   document.getElementById('ft').value.toLowerCase()
-});
-const matchLog = (e,f) => {
-  if (f.level && e.level    !== f.level) return false;
-  if (f.cat   && e.category !== f.cat)   return false;
-  if (f.txt && !(e.message+' '+(e.detail||'')).toLowerCase().includes(f.txt)) return false;
-  return true;
-};
-const lvlCls = l => ({debug:'ld',info:'li',warn:'lw',error:'le2'}[l]||'li');
-
-function renderLog(e, isNew) {
-  const f = gf(); if (!matchLog(e,f)) return null;
-  const d = document.createElement('div');
-  d.className  = 'le'+(isNew?' new':''); d.dataset.ts = e.ts;
-  d.innerHTML  =
-    '<span class="ts">'+fmtLog(e.ts)+'</span>'+
-    '<span class="bdg '+lvlCls(e.level)+'">'+e.level.toUpperCase()+'</span>'+
-    '<span class="bdg c'+e.category+'">'+e.category+'</span>'+
-    '<span class="msg">'+esc(e.message)+(e.detail?'<br><span class="det">'+esc(e.detail)+'</span>':'')+'</span>';
-  return d;
-}
-
-async function fetchLogs() {
-  try {
-    const f   = gf();
-    const url = '/api/logs?since='+newestTs+'&limit=100'+(f.level?'&level='+f.level:'')+(f.cat?'&category='+f.cat:'');
-    const d   = await fetch(url).then(r => r.json());
-    const c   = lc();
-    const atB = c.scrollHeight - c.scrollTop - c.clientHeight < 80;
-    if (d.entries.length > 0) {
-      document.getElementById('log-empty').style.display = 'none';
-      d.entries.forEach(e => { const el = renderLog(e,true); if(el) c.appendChild(el); displayed.push(e); });
-      newestTs = d.newest;
-      const rows = c.querySelectorAll('.le');
-      if (rows.length > 1000) for (let i=0;i<rows.length-1000;i++) rows[i].remove();
-      if (document.getElementById('as').checked && atB) scrollLogBottom();
-      else if (!atB) document.getElementById('ni').style.display = 'block';
-    }
-    document.getElementById('st-lg').textContent = d.total;
-  } catch {}
-}
-
-function scrollLogBottom() {
-  const c = lc(); c.scrollTop = c.scrollHeight;
-  document.getElementById('ni').style.display = 'none';
-}
-function clearLogs() {
-  lc().querySelectorAll('.le').forEach(e => e.remove());
-  document.getElementById('log-empty').style.display = '';
-  newestTs = Date.now(); displayed = [];
-}
-function applyLogFilter() {
-  const f = gf();
-  lc().querySelectorAll('.le').forEach(el => {
-    const e = displayed.find(d => d.ts == el.dataset.ts);
-    if (e) el.style.display = matchLog(e,f) ? '' : 'none';
-  });
-}
-function exportLogs() {
-  const f = gf();
-  const txt = displayed.filter(e=>matchLog(e,f))
-    .map(e=>'['+new Date(e.ts).toISOString()+'] ['+e.level.toUpperCase()+'] ['+e.category+'] '+e.message+(e.detail?' — '+e.detail:'')).join('\\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
-  a.download = 'metermaster-log-'+new Date().toISOString().slice(0,19)+'.txt';
-  a.click();
-}
-// Log-Filter EventListener → werden in initLogFilters() gesetzt
-
-function startLive() {
-  clearInterval(logTimer);
-  logTimer = setInterval(async () => { await fetchLogs(); await fetchStats(); }, 3000);
-}
-
-
-// ── SYSTEM-TAB ────────────────────────────────────────────────────────────────
-async function checkVersion() {
-  const btn   = document.getElementById('sv-check-btn');
-  const spin  = document.getElementById('sv-spin');
-  const updBtn = document.getElementById('sv-upd-btn');
-  btn.disabled = true; spin.style.display = 'inline';
-  try {
-    const d = await fetch('/api/version').then(r => r.json());
-    document.getElementById('sv-cur').textContent = d.current || '–';
-    document.getElementById('sv-lat').textContent = d.latest  || (d.error ? '(Fehler)' : '–');
-    const st = document.getElementById('sv-status');
-    if (d.error) {
-      st.innerHTML = '<span class="badge-err">⚠ GitHub nicht erreichbar</span>';
-      updBtn.style.display = 'none';
-    } else if (d.updateAvailable) {
-      st.innerHTML = '<span class="badge-new">🆕 Update verfügbar</span>';
-      updBtn.style.display = '';
-    } else {
-      st.innerHTML = '<span class="badge-ok">✓ Aktuell</span>';
-      updBtn.style.display = 'none';
-    }
-  } catch(e) {
-    document.getElementById('sv-status').innerHTML = '<span class="badge-err">⚠ Netzwerkfehler</span>';
-  }
-  btn.disabled = false; spin.style.display = 'none';
-}
-
-async function doUpdate() {
-  const btn    = document.getElementById('sv-upd-btn');
-  const spin   = document.getElementById('sv-spin');
-  const outBox = document.getElementById('sv-out');
-  if (!confirm('Update installieren und Adapter neu starten?')) return;
-  btn.style.display = 'none'; spin.style.display = 'inline';
-  outBox.style.display = 'block'; outBox.textContent = '⏳ Update läuft…';
-  try {
-    const r = await fetch('/api/update', { method: 'POST' });
-    const d = await r.json();
-    if (d.ok) {
-      outBox.textContent = '✅ Update erfolgreich.\nAdapter wird neu gestartet…\n\n' + (d.output||'');
-      document.getElementById('sv-status').innerHTML = '<span class="badge-ok">✓ Neu gestartet</span>';
-      setTimeout(() => { outBox.textContent += '\n⟳ Seite wird neu geladen…'; location.reload(); }, 8000);
-    } else {
-      outBox.textContent = '❌ Fehler:\n' + (d.error||'') + '\n\n' + (d.output||'');
-      btn.style.display = ''; spin.style.display = 'none';
-    }
-  } catch(e) {
-    outBox.textContent = '❌ Netzwerkfehler: ' + e.message;
-    btn.style.display = ''; spin.style.display = 'none';
-  }
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-function initTabs() {
-  // Tab-Buttons
-  ['data','import','logs','system'].forEach(name => {
-    const el = document.getElementById('tab-' + name);
-    if (el) {
-      el.addEventListener('click', () => showTab(name));
-      el.style.cursor = 'pointer';
-      el.style.pointerEvents = 'all';
-    }
-  });
-  // Event Delegation auf nav als Fallback
-  const nav = document.querySelector('nav');
-  if (nav) {
-    nav.addEventListener('click', e => {
-      const tab = e.target.closest('[data-tab]');
-      if (tab) { e.stopPropagation(); showTab(tab.dataset.tab); }
-    });
-  }
-  // System-Tab Buttons
-  const chkBtn = document.getElementById('sv-check-btn');
-  if (chkBtn) chkBtn.addEventListener('click', checkVersion);
-  const updBtn = document.getElementById('sv-upd-btn');
-  if (updBtn) updBtn.addEventListener('click', doUpdate);
-
-  // Dropzone
-  dz = document.getElementById('drop-zone');
-  if (dz) {
-    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
-    dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
-    dz.addEventListener('drop',      e => { e.preventDefault(); dz.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
-  }
-  const fi = document.getElementById('file-in');
-  if (fi) fi.addEventListener('change', e => loadFile(e.target.files[0]));
-
-  // Log-Filter
-  ['fl','fc'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('change', applyLogFilter);
-  });
-  const ft = document.getElementById('ft');
-  if (ft) ft.addEventListener('input', applyLogFilter);
-  const ar = document.getElementById('ar');
-  if (ar) ar.addEventListener('change', e => { if(e.target.checked) startLive(); else clearInterval(logTimer); });
-}
-
-async function init() {
-  initTabs();
-  try {
-    const d = await fetch('/api/logs?limit=500').then(r => r.json());
-    if (d.entries.length > 0) {
-      document.getElementById('log-empty').style.display = 'none';
-      d.entries.forEach(e => { const el = renderLog(e,false); if(el) lc().appendChild(el); });
-      displayed = d.entries; newestTs = d.newest;
-    }
-  } catch {}
-  await fetchData();
-  await fetchStats();
-  startLive();
-}
-init();
-`;
-}
 
 function serveWebApp(res, port) {
 
@@ -1357,7 +1004,346 @@ input.search {
 
 <div id="ni" onclick="scrollLogBottom()">↓ Neue Einträge</div>
 
-<script src="/app.js"></script>
+<script>
+const TYPE_ICONS = ${JSON.stringify(TYPE_ICONS)};
+
+// ── Tab-Navigation ────────────────────────────────────────────────────────────
+window.showTab = function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('page-'+name).classList.add('active');
+  if (name === 'data')   fetchData();
+  if (name === 'system') checkVersion();
+}
+
+// ── Hilfsfunktionen ───────────────────────────────────────────────────────────
+const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmtDt  = ts => new Date(ts).toLocaleString('de-DE',{hour12:false});
+const fmtUp  = s  => Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m '+Math.floor(s%60)+'s';
+const fmtLog = ts => {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('de-DE',{hour12:false})+'.'+String(d.getMilliseconds()).padStart(3,'0');
+};
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function fetchStats() {
+  try {
+    const d = await fetch('/api/stats').then(r => r.json());
+    document.getElementById('st-rx').textContent = d.readingsReceived;
+    document.getElementById('st-lg').textContent = d.logEntries;
+    document.getElementById('st-up').textContent = fmtUp(d.uptime);
+    document.getElementById('st-live').textContent = '● Live';
+    document.getElementById('st-live').style.color = 'var(--accent)';
+  } catch {
+    document.getElementById('st-live').textContent = '✗ Getrennt';
+    document.getElementById('st-live').style.color = 'var(--danger)';
+  }
+}
+
+// ── DATEN-TAB ─────────────────────────────────────────────────────────────────
+async function fetchData() {
+  try {
+    const d   = await fetch('/api/data').then(r => r.json());
+    const con = document.getElementById('data-container');
+    if (!d.data || !Object.keys(d.data).length) {
+      con.innerHTML = '<div class="empty-state"><div class="ico">📡</div><p>Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App.</p></div>';
+      return;
+    }
+    let html = '';
+    for (const [house, apts] of Object.entries(d.data)) {
+      html += '<div class="house-block"><div class="house-title">🏠 '+esc(house)+'</div>';
+      for (const [apt, meters] of Object.entries(apts)) {
+        html += '<div class="apt-block"><div class="apt-title">🏘 '+esc(apt)+'</div><div class="meters-grid">';
+        for (const [key, m] of Object.entries(meters)) {
+          const icon   = TYPE_ICONS[m.typeName] || '📟';
+          const histId = 'h-'+CSS.escape(house+apt+key);
+          const rows   = (m.history||[]).slice().reverse().map(h =>
+            '<div class="hist-row"><span>'+esc(fmtDt(h.ts))+'</span><span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span></div>'
+          ).join('');
+          html +=
+            '<div class="meter-card">'+
+              '<div class="mc-head">'+
+                '<div class="mc-name">'+icon+' '+esc(key)+'</div>'+
+                '<div class="mc-badge">'+esc(m.typeName||'?')+'</div>'+
+              '</div>'+
+              '<div class="mc-value-row">'+
+                '<span class="mc-value">'+(m.latest !== undefined ? m.latest : '–')+'</span>'+
+                '<span class="mc-unit">'+esc(m.unit||'')+'</span>'+
+              '</div>'+
+              '<div class="mc-date">📅 '+esc(m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '–')+'</div>'+
+              (rows ?
+                '<button class="mc-hist-toggle" onclick="toggleHist(\''+histId+'\')">📈 Verlauf ('+(m.history||[]).length+')</button>'+
+                '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
+              : '')+
+            '</div>';
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+    con.innerHTML = html;
+  } catch(e) {
+    document.getElementById('data-container').innerHTML =
+      '<div class="empty-state"><div class="ico">⚠️</div><p>Fehler: '+esc(e.message)+'</p></div>';
+  }
+}
+
+function toggleHist(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+// ── IMPORT-TAB ────────────────────────────────────────────────────────────────
+let importData = null;
+let dz = null; // wird in initDropzone() gesetzt
+
+function loadFile(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try { importData = JSON.parse(e.target.result); showPreview(importData, file.name); }
+    catch { showResult('err', '❌ Ungültige JSON-Datei'); }
+  };
+  r.readAsText(file);
+}
+
+function showPreview(d, fname) {
+  const valid = !!(d.Apartments && d.Meters && d.Readings);
+  document.getElementById('preview-content').innerHTML =
+    prow('Datei',      esc(fname)) +
+    prow('Schema',     d.SchemaVersion||'?') +
+    prow('Wohnungen',  (d.Apartments||[]).length) +
+    prow('Zähler',     (d.Meters||[]).length) +
+    prow('Ablesungen', (d.Readings||[]).length) +
+    prow('Kompatibel', valid ? '✅ Ja' : '❌ Nein – Pflichtfelder fehlen');
+  document.getElementById('preview-box').style.display = 'block';
+  document.getElementById('imp-btn').disabled = !valid;
+}
+const prow = (l,v) => '<div class="preview-row"><span>'+l+'</span><b>'+v+'</b></div>';
+
+async function doImport() {
+  if (!importData) return;
+  const house = document.getElementById('imp-house').value.trim() || 'MeinHaus';
+  const btn   = document.getElementById('imp-btn');
+  btn.disabled = true; btn.textContent = '⏳ Importiere…';
+  try {
+    const r = await fetch('/api/import', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({...importData, HouseName: house})
+    });
+    const d = await r.json();
+    if (d.ok) { showResult('ok',   '✅ '+d.summary); fetchData(); fetchStats(); }
+    else       { showResult('warn','⚠️ '+d.summary+(d.errors.length ? '<br>'+d.errors.slice(0,5).map(esc).join('<br>') : '')); }
+  } catch(e) { showResult('err', '❌ Netzwerkfehler: '+esc(e.message)); }
+  finally { btn.disabled = false; btn.textContent = '⬆ Importieren'; }
+}
+function showResult(type, msg) {
+  const rb = document.getElementById('imp-result');
+  rb.className = 'result-box '+type; rb.innerHTML = msg; rb.style.display = 'block';
+}
+function clearImport() {
+  importData = null;
+  document.getElementById('file-in').value = '';
+  document.getElementById('preview-box').style.display  = 'none';
+  document.getElementById('imp-result').style.display   = 'none';
+  document.getElementById('imp-btn').disabled = true;
+}
+
+// ── LOG-TAB ───────────────────────────────────────────────────────────────────
+let newestTs = 0, displayed = [], logTimer;
+const lc  = () => document.getElementById('lc');
+const gf  = () => ({
+  level: document.getElementById('fl').value,
+  cat:   document.getElementById('fc').value,
+  txt:   document.getElementById('ft').value.toLowerCase()
+});
+const matchLog = (e,f) => {
+  if (f.level && e.level    !== f.level) return false;
+  if (f.cat   && e.category !== f.cat)   return false;
+  if (f.txt && !(e.message+' '+(e.detail||'')).toLowerCase().includes(f.txt)) return false;
+  return true;
+};
+const lvlCls = l => ({debug:'ld',info:'li',warn:'lw',error:'le2'}[l]||'li');
+
+function renderLog(e, isNew) {
+  const f = gf(); if (!matchLog(e,f)) return null;
+  const d = document.createElement('div');
+  d.className  = 'le'+(isNew?' new':''); d.dataset.ts = e.ts;
+  d.innerHTML  =
+    '<span class="ts">'+fmtLog(e.ts)+'</span>'+
+    '<span class="bdg '+lvlCls(e.level)+'">'+e.level.toUpperCase()+'</span>'+
+    '<span class="bdg c'+e.category+'">'+e.category+'</span>'+
+    '<span class="msg">'+esc(e.message)+(e.detail?'<br><span class="det">'+esc(e.detail)+'</span>':'')+'</span>';
+  return d;
+}
+
+async function fetchLogs() {
+  try {
+    const f   = gf();
+    const url = '/api/logs?since='+newestTs+'&limit=100'+(f.level?'&level='+f.level:'')+(f.cat?'&category='+f.cat:'');
+    const d   = await fetch(url).then(r => r.json());
+    const c   = lc();
+    const atB = c.scrollHeight - c.scrollTop - c.clientHeight < 80;
+    if (d.entries.length > 0) {
+      document.getElementById('log-empty').style.display = 'none';
+      d.entries.forEach(e => { const el = renderLog(e,true); if(el) c.appendChild(el); displayed.push(e); });
+      newestTs = d.newest;
+      const rows = c.querySelectorAll('.le');
+      if (rows.length > 1000) for (let i=0;i<rows.length-1000;i++) rows[i].remove();
+      if (document.getElementById('as').checked && atB) scrollLogBottom();
+      else if (!atB) document.getElementById('ni').style.display = 'block';
+    }
+    document.getElementById('st-lg').textContent = d.total;
+  } catch {}
+}
+
+function scrollLogBottom() {
+  const c = lc(); c.scrollTop = c.scrollHeight;
+  document.getElementById('ni').style.display = 'none';
+}
+function clearLogs() {
+  lc().querySelectorAll('.le').forEach(e => e.remove());
+  document.getElementById('log-empty').style.display = '';
+  newestTs = Date.now(); displayed = [];
+}
+function applyLogFilter() {
+  const f = gf();
+  lc().querySelectorAll('.le').forEach(el => {
+    const e = displayed.find(d => d.ts == el.dataset.ts);
+    if (e) el.style.display = matchLog(e,f) ? '' : 'none';
+  });
+}
+function exportLogs() {
+  const f = gf();
+  const txt = displayed.filter(e=>matchLog(e,f))
+    .map(e=>'['+new Date(e.ts).toISOString()+'] ['+e.level.toUpperCase()+'] ['+e.category+'] '+e.message+(e.detail?' — '+e.detail:'')).join('\\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
+  a.download = 'metermaster-log-'+new Date().toISOString().slice(0,19)+'.txt';
+  a.click();
+}
+// Log-Filter EventListener → werden in initLogFilters() gesetzt
+
+function startLive() {
+  clearInterval(logTimer);
+  logTimer = setInterval(async () => { await fetchLogs(); await fetchStats(); }, 3000);
+}
+
+
+// ── SYSTEM-TAB ────────────────────────────────────────────────────────────────
+async function checkVersion() {
+  const btn   = document.getElementById('sv-check-btn');
+  const spin  = document.getElementById('sv-spin');
+  const updBtn = document.getElementById('sv-upd-btn');
+  btn.disabled = true; spin.style.display = 'inline';
+  try {
+    const d = await fetch('/api/version').then(r => r.json());
+    document.getElementById('sv-cur').textContent = d.current || '–';
+    document.getElementById('sv-lat').textContent = d.latest  || (d.error ? '(Fehler)' : '–');
+    const st = document.getElementById('sv-status');
+    if (d.error) {
+      st.innerHTML = '<span class="badge-err">⚠ GitHub nicht erreichbar</span>';
+      updBtn.style.display = 'none';
+    } else if (d.updateAvailable) {
+      st.innerHTML = '<span class="badge-new">🆕 Update verfügbar</span>';
+      updBtn.style.display = '';
+    } else {
+      st.innerHTML = '<span class="badge-ok">✓ Aktuell</span>';
+      updBtn.style.display = 'none';
+    }
+  } catch(e) {
+    document.getElementById('sv-status').innerHTML = '<span class="badge-err">⚠ Netzwerkfehler</span>';
+  }
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+async function doUpdate() {
+  const btn    = document.getElementById('sv-upd-btn');
+  const spin   = document.getElementById('sv-spin');
+  const outBox = document.getElementById('sv-out');
+  if (!confirm('Update installieren und Adapter neu starten?')) return;
+  btn.style.display = 'none'; spin.style.display = 'inline';
+  outBox.style.display = 'block'; outBox.textContent = '⏳ Update läuft…';
+  try {
+    const r = await fetch('/api/update', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      outBox.textContent = '✅ Update erfolgreich.\nAdapter wird neu gestartet…\n\n' + (d.output||'');
+      document.getElementById('sv-status').innerHTML = '<span class="badge-ok">✓ Neu gestartet</span>';
+      setTimeout(() => { outBox.textContent += '\n⟳ Seite wird neu geladen…'; location.reload(); }, 8000);
+    } else {
+      outBox.textContent = '❌ Fehler:\n' + (d.error||'') + '\n\n' + (d.output||'');
+      btn.style.display = ''; spin.style.display = 'none';
+    }
+  } catch(e) {
+    outBox.textContent = '❌ Netzwerkfehler: ' + e.message;
+    btn.style.display = ''; spin.style.display = 'none';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function initTabs() {
+  // Tab-Buttons
+  ['data','import','logs','system'].forEach(name => {
+    const el = document.getElementById('tab-' + name);
+    if (el) {
+      el.addEventListener('click', () => showTab(name));
+      el.style.cursor = 'pointer';
+      el.style.pointerEvents = 'all';
+    }
+  });
+  // Event Delegation auf nav als Fallback
+  const nav = document.querySelector('nav');
+  if (nav) {
+    nav.addEventListener('click', e => {
+      const tab = e.target.closest('[data-tab]');
+      if (tab) { e.stopPropagation(); showTab(tab.dataset.tab); }
+    });
+  }
+  // System-Tab Buttons
+  const chkBtn = document.getElementById('sv-check-btn');
+  if (chkBtn) chkBtn.addEventListener('click', checkVersion);
+  const updBtn = document.getElementById('sv-upd-btn');
+  if (updBtn) updBtn.addEventListener('click', doUpdate);
+
+  // Dropzone
+  dz = document.getElementById('drop-zone');
+  if (dz) {
+    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
+    dz.addEventListener('drop',      e => { e.preventDefault(); dz.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
+  }
+  const fi = document.getElementById('file-in');
+  if (fi) fi.addEventListener('change', e => loadFile(e.target.files[0]));
+
+  // Log-Filter
+  ['fl','fc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', applyLogFilter);
+  });
+  const ft = document.getElementById('ft');
+  if (ft) ft.addEventListener('input', applyLogFilter);
+  const ar = document.getElementById('ar');
+  if (ar) ar.addEventListener('change', e => { if(e.target.checked) startLive(); else clearInterval(logTimer); });
+}
+
+async function init() {
+  initTabs();
+  try {
+    const d = await fetch('/api/logs?limit=500').then(r => r.json());
+    if (d.entries.length > 0) {
+      document.getElementById('log-empty').style.display = 'none';
+      d.entries.forEach(e => { const el = renderLog(e,false); if(el) lc().appendChild(el); });
+      displayed = d.entries; newestTs = d.newest;
+    }
+  } catch {}
+  await fetchData();
+  await fetchStats();
+  startLive();
+}
+init();
+</script>
 </body>
 </html>`;
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
