@@ -2,7 +2,7 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.2.3-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -218,6 +218,13 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.2.3 (2026-03-07)
+- **Bugfix:** `validateReading()` war nicht definiert → `ReferenceError` beim ersten Sync → App meldet „unexpected end of stream"
+
+### 0.2.2 (2026-03-07)
+- **Bugfix:** Tab-Wechsel in manchen ioBroker-Umgebungen ohne Funktion — `onclick`-Attribute durch `addEventListener` ersetzt (robuster, CSP-kompatibel)
+- `querySelector('[onclick=...]')` in `checkVersion()` durch `getElementById` ersetzt
 
 ### 0.2.1 (2026-03-07)
 - **System-Tab** in der Web-UI mit GitHub-Versionscheck und Ein-Klick-Update

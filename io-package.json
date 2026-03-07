@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.1",
+    "version": "0.2.3",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -91,6 +91,14 @@
       "0.2.1": {
         "en": "System tab with GitHub update check and one-click update; fixed adapter.start() incompatibility with adapter-core v3.x; added admin/ folder (config page & icon)",
         "de": "System-Tab mit GitHub-Versionscheck + Ein-Klick-Update; adapter.start() für adapter-core v3.x gefixt; admin/-Ordner ergänzt (Konfig-Seite + Icon)"
+      },
+      "0.2.2": {
+        "en": "Bugfix: tab switching broken in some ioBroker environments — replaced inline onclick with addEventListener",
+        "de": "Bugfix: Tab-Wechsel in manchen ioBroker-Umgebungen defekt — onclick-Attribute durch addEventListener ersetzt"
+      },
+      "0.2.3": {
+        "en": "Bugfix: validateReading() was called but never defined — caused ReferenceError on sync (unexpected end of stream in app)",
+        "de": "Bugfix: validateReading() wurde aufgerufen aber nie definiert — ReferenceError beim Sync (unexpected end of stream in App)"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",

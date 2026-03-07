@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.1';
+const CURRENT_VERSION = '0.2.3';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -160,6 +160,19 @@ function startHttpServer() {
 function handlePing(res, clientIp) {
     log(LVL.DEBUG, CAT.CONNECT, `Ping`, `IP: ${clientIp}`);
     sendJson(res, 200, { ok: true, adapter: 'metermaster', version: CURRENT_VERSION, received: readingsReceived });
+}
+
+// ─── Validierung ─────────────────────────────────────────────────────────────
+function validateReading(data) {
+    if (!data || typeof data !== 'object') return 'Kein Objekt';
+    if (!data.house      || typeof data.house      !== 'string') return 'Pflichtfeld fehlt: house';
+    if (!data.apartment  || typeof data.apartment  !== 'string') return 'Pflichtfeld fehlt: apartment';
+    if (!data.meter      || typeof data.meter      !== 'string') return 'Pflichtfeld fehlt: meter';
+    if (data.value === undefined || data.value === null)         return 'Pflichtfeld fehlt: value';
+    if (isNaN(parseFloat(data.value)))                           return 'value muss eine Zahl sein';
+    if (!data.readingDate)                                       return 'Pflichtfeld fehlt: readingDate';
+    if (isNaN(new Date(data.readingDate).getTime()))             return 'readingDate: kein gültiges Datum';
+    return null;
 }
 
 // ─── Einzelne Ablesung ────────────────────────────────────────────────────────
@@ -812,10 +825,10 @@ input.search {
 
 <!-- ══ NAV ═══════════════════════════════════════════════════════════════════ -->
 <nav>
-  <div class="tab active" id="tab-data"   onclick="showTab('data')"  >📊 Daten</div>
-  <div class="tab"        id="tab-import" onclick="showTab('import')">📥 Import</div>
-  <div class="tab"        id="tab-logs"   onclick="showTab('logs')"  >📋 Logs</div>
-  <div class="tab"        id="tab-system" onclick="showTab('system')">⚙️ System</div>
+  <div class="tab active" id="tab-data"   >📊 Daten</div>
+  <div class="tab"        id="tab-import" >📥 Import</div>
+  <div class="tab"        id="tab-logs"   >📋 Logs</div>
+  <div class="tab"        id="tab-system" >⚙️ System</div>
 </nav>
 
 <!-- ══ DATEN ══════════════════════════════════════════════════════════════════ -->
@@ -903,8 +916,8 @@ input.search {
     <div class="ver-row"><span class="ver-label">Aktuell (GitHub)</span><span class="ver-val" id="sv-lat">–</span></div>
     <div class="ver-row"><span class="ver-label">Status</span>        <span id="sv-status"><span class="badge-warn">Noch nicht geprüft</span></span></div>
     <div class="sys-btn-row">
-      <button class="ghost" onclick="checkVersion()">🔍 Auf Updates prüfen</button>
-      <button class="primary" id="sv-upd-btn" style="display:none" onclick="doUpdate()">⬆ Update installieren</button>
+      <button class="ghost" id="sv-check-btn">🔍 Auf Updates prüfen</button>
+      <button class="primary" id="sv-upd-btn" style="display:none">⬆ Update installieren</button>
       <span id="sv-spin" style="display:none;font-size:.84em;color:var(--text-dim)">⏳ Bitte warten…</span>
     </div>
     <div class="sys-out" id="sv-out"></div>
@@ -1164,7 +1177,7 @@ function startLive() {
 
 // ── SYSTEM-TAB ────────────────────────────────────────────────────────────────
 async function checkVersion() {
-  const btn   = document.querySelector('[onclick="checkVersion()"]');
+  const btn   = document.getElementById('sv-check-btn');
   const spin  = document.getElementById('sv-spin');
   const updBtn = document.getElementById('sv-upd-btn');
   btn.disabled = true; spin.style.display = 'inline';
@@ -1214,7 +1227,19 @@ async function doUpdate() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+function initTabs() {
+  ['data','import','logs','system'].forEach(name => {
+    const el = document.getElementById('tab-' + name);
+    if (el) el.addEventListener('click', () => showTab(name));
+  });
+  const chkBtn = document.getElementById('sv-check-btn');
+  if (chkBtn) chkBtn.addEventListener('click', checkVersion);
+  const updBtn = document.getElementById('sv-upd-btn');
+  if (updBtn) updBtn.addEventListener('click', doUpdate);
+}
+
 async function init() {
+  initTabs();
   try {
     const d = await fetch('/api/logs?limit=500').then(r => r.json());
     if (d.entries.length > 0) {
