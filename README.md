@@ -2,7 +2,7 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.2.3-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.2.4-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -218,6 +218,12 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.2.4 (2026-03-07)
+- **Bugfix:** Daten-Tab nach Adapter-Neustart leer — Cache wird jetzt beim Start aus ioBroker-States wiederhergestellt
+- Version wird im Web-UI Header angezeigt
+- Tab-Wechsel: robusteres Event-System mit Event Delegation + `pointer-events: all !important`
+- Startlog: Version war hardcoded `v1.0.0` statt dynamisch
 
 ### 0.2.3 (2026-03-07)
 - **Bugfix:** `validateReading()` war nicht definiert → `ReferenceError` beim ersten Sync → App meldet „unexpected end of stream"

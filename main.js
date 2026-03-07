@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.3';
+const CURRENT_VERSION = '0.2.4';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -61,18 +61,20 @@ function log(level, category, message, detail) {
 // ─── ready ────────────────────────────────────────────────────────────────────
 adapter.on('ready', async () => {
     logBufferMaxSize = parseInt(adapter.config?.logBufferSize) || 500;
-    log(LVL.INFO, CAT.SYSTEM, `MeterMaster Adapter v1.0.0 gestartet`,
+    log(LVL.INFO, CAT.SYSTEM, `MeterMaster Adapter v${CURRENT_VERSION} gestartet`,
         `Port: ${adapter.config.port || 8089} | Logging: ${adapter.config.verboseLogging ? 'ausführlich' : 'standard'} | Puffer: ${logBufferMaxSize}`);
 
-    await adapter.setStateAsync('info.connection',       { val: false, ack: true });
-    await adapter.setStateAsync('info.lastSync',         { val: '',    ack: true });
-    await adapter.setStateAsync('info.readingsReceived', { val: 0,     ack: true });
+    await adapter.setStateAsync('info.connection', { val: false, ack: true });
 
-    const savedState = await adapter.getStateAsync('info.readingsReceived');
-    if (savedState && typeof savedState.val === 'number') {
-        readingsReceived = savedState.val;
-        log(LVL.DEBUG, CAT.SYSTEM, `Zähler wiederhergestellt`, `${readingsReceived} Ablesungen bisher`);
+    // readingsReceived aus persistentem State wiederherstellen
+    const savedRx = await adapter.getStateAsync('info.readingsReceived');
+    if (savedRx && typeof savedRx.val === 'number') {
+        readingsReceived = savedRx.val;
     }
+
+    // In-Memory-Cache aus gespeicherten ioBroker-States wiederherstellen
+    await restoreCacheFromStates();
+
     startHttpServer();
 });
 
@@ -81,6 +83,64 @@ adapter.on('unload', (callback) => {
     try { if (server) { server.close(() => callback()); } else { callback(); } }
     catch (e) { callback(); }
 });
+
+// ─── Cache-Wiederherstellung beim Start ───────────────────────────────────────
+async function restoreCacheFromStates() {
+    try {
+        const allStates = await adapter.getStatesAsync('*');
+        if (!allStates) return;
+
+        // Alle *.readings.latest States finden → daraus Struktur ableiten
+        const latestKeys = Object.keys(allStates).filter(k =>
+            k.endsWith('.readings.latest') && allStates[k] && allStates[k].val !== null
+        );
+
+        if (latestKeys.length === 0) {
+            log(LVL.DEBUG, CAT.SYSTEM, 'Cache-Wiederherstellung', 'Keine gespeicherten Ablesungen gefunden');
+            return;
+        }
+
+        let restored = 0;
+        for (const key of latestKeys) {
+            // Key-Format: metermaster.0.{house}.{apt}.{meter}.readings.latest
+            // adapter.getStatesAsync gibt Keys ohne Namespace zurück: {house}.{apt}.{meter}.readings.latest
+            const parts = key.replace(/^metermaster\.\d+\./, '').split('.');
+            if (parts.length < 4) continue;
+            // Letzten 2 Teile = "readings.latest" abschneiden → [house, apt, meter]
+            const segments = parts.slice(0, parts.length - 2);
+            if (segments.length < 3) continue;
+            const [house, apt, ...meterParts] = segments;
+            const meter = meterParts.join('.');
+
+            const base     = segments.join('.');
+            const latest   = allStates[key]?.val;
+            const dateKey  = `${base}.readings.latestDate`;
+            const histKey  = `${base}.readings.history`;
+            const unitKey  = `${base}.unit`;
+            const typeKey  = `${base}.typeName`;
+
+            const latestDate = allStates[dateKey]?.val  || '';
+            const unit       = allStates[unitKey]?.val  || '';
+            const typeName   = allStates[typeKey]?.val  || '';
+            const histRaw    = allStates[histKey]?.val  || '[]';
+
+            let history = [];
+            try { history = JSON.parse(histRaw); if (!Array.isArray(history)) history = []; } catch {}
+
+            // Cache direkt befüllen (ohne cacheReading um Duplikate zu vermeiden)
+            if (!receivedData[house])           receivedData[house] = {};
+            if (!receivedData[house][apt])      receivedData[house][apt] = {};
+            receivedData[house][apt][meter] = {
+                latest, latestDate, unit, typeName, history
+            };
+            restored++;
+        }
+
+        log(LVL.INFO, CAT.SYSTEM, `Cache wiederhergestellt`, `${restored} Zähler aus ioBroker-States geladen`);
+    } catch (e) {
+        log(LVL.WARN, CAT.SYSTEM, 'Cache-Wiederherstellung fehlgeschlagen', e.message);
+    }
+}
 
 // ─── HTTP-Server ──────────────────────────────────────────────────────────────
 function startHttpServer() {
@@ -584,9 +644,10 @@ nav {
   display: flex; flex-shrink: 0;
 }
 .tab {
-  padding: 11px 22px; cursor: pointer; font-size: .88em;
+  padding: 11px 22px; cursor: pointer !important; font-size: .88em;
   color: var(--text-dim); border-bottom: 3px solid transparent;
   transition: color .2s, border-color .2s; user-select: none;
+  pointer-events: all !important;
 }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--secondary); border-bottom-color: var(--primary); }
@@ -813,7 +874,7 @@ input.search {
   <div class="logo-icon">${LOGO_SVG}</div>
   <div class="logo-text">
     <span class="logo-title">MeterMaster</span>
-    <span class="logo-sub">ioBroker Adapter</span>
+    <span class="logo-sub">ioBroker Adapter &nbsp;<span style="color:var(--primary);font-size:.95em;letter-spacing:.5px">v${CURRENT_VERSION}</span></span>
   </div>
   <div class="hstats">
     <div class="hstat">Ablesungen: <b id="st-rx">–</b></div>
@@ -825,10 +886,10 @@ input.search {
 
 <!-- ══ NAV ═══════════════════════════════════════════════════════════════════ -->
 <nav>
-  <div class="tab active" id="tab-data"   >📊 Daten</div>
-  <div class="tab"        id="tab-import" >📥 Import</div>
-  <div class="tab"        id="tab-logs"   >📋 Logs</div>
-  <div class="tab"        id="tab-system" >⚙️ System</div>
+  <div class="tab active" id="tab-data"   data-tab="data"  >📊 Daten</div>
+  <div class="tab"        id="tab-import" data-tab="import">📥 Import</div>
+  <div class="tab"        id="tab-logs"   data-tab="logs"  >📋 Logs</div>
+  <div class="tab"        id="tab-system" data-tab="system">⚙️ System</div>
 </nav>
 
 <!-- ══ DATEN ══════════════════════════════════════════════════════════════════ -->
@@ -1228,10 +1289,23 @@ async function doUpdate() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 function initTabs() {
+  // Direkte Listener auf jeden Tab
   ['data','import','logs','system'].forEach(name => {
     const el = document.getElementById('tab-' + name);
-    if (el) el.addEventListener('click', () => showTab(name));
+    if (el) {
+      el.addEventListener('click', () => showTab(name));
+      el.style.cursor = 'pointer';
+      el.style.pointerEvents = 'all';
+    }
   });
+  // Event Delegation auf nav als Fallback (fängt auch Klicks auf Kind-Elemente)
+  const nav = document.querySelector('nav');
+  if (nav) {
+    nav.addEventListener('click', e => {
+      const tab = e.target.closest('[data-tab]');
+      if (tab) { e.stopPropagation(); showTab(tab.dataset.tab); }
+    });
+  }
   const chkBtn = document.getElementById('sv-check-btn');
   if (chkBtn) chkBtn.addEventListener('click', checkVersion);
   const updBtn = document.getElementById('sv-upd-btn');

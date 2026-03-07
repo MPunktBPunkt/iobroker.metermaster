@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -99,6 +99,10 @@
       "0.2.3": {
         "en": "Bugfix: validateReading() was called but never defined — caused ReferenceError on sync (unexpected end of stream in app)",
         "de": "Bugfix: validateReading() wurde aufgerufen aber nie definiert — ReferenceError beim Sync (unexpected end of stream in App)"
+      },
+      "0.2.4": {
+        "en": "Cache restore on startup (data tab populated after restart); version shown in header; robust tab switching with event delegation",
+        "de": "Cache-Wiederherstellung beim Start (Daten-Tab nach Neustart befüllt); Version im Header; robusteres Tab-Switching mit Event-Delegation"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",
