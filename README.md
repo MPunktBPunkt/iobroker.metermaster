@@ -2,7 +2,7 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.2.9-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -218,6 +218,9 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.3.0 (2026-03-07)
+- **Bugfix:** Korrekte Unicode-Escapes im Browser-JS: Emojis > U+FFFF als Surrogate-Pairs (`\uD83D\uDCC5`), `U+FE0F` aus `TYPE_ICONS` entfernt — `SyntaxError: Unexpected string` vollständig behoben
 
 ### 0.2.9 (2026-03-07)
 - **Bugfix:** Alle Nicht-ASCII-Zeichen im Browser-JS durch `\uXXXX`-Escapes ersetzt — der `U+FE0F Variation Selector-16` (unsichtbar, hinter ⚙️ etc.) verursachte `SyntaxError: Unexpected string` und blockierte das komplette Script

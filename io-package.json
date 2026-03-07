@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.9",
+    "version": "0.3.0",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -123,6 +123,10 @@
       "0.2.9": {
         "en": "Bugfix: all non-ASCII characters (emojis, dashes, special chars) in browser JS escaped as \\uXXXX — eliminates SyntaxError caused by U+FE0F Variation Selector and other multi-byte chars",
         "de": "Bugfix: alle Nicht-ASCII-Zeichen (Emojis, Gedankenstriche, Sonderzeichen) im Browser-JS als \\uXXXX escaped — behebt SyntaxError durch U+FE0F Variation Selector und andere Multi-Byte-Zeichen"
+      },
+      "0.3.0": {
+        "en": "Bugfix: correct Unicode escaping for all non-ASCII chars in browser JS (surrogate pairs for emojis > U+FFFF, U+FE0F removed from TYPE_ICONS); SyntaxError fully resolved",
+        "de": "Bugfix: korrekte Unicode-Escapes für alle Nicht-ASCII im Browser-JS (Surrogate-Pairs für Emojis > U+FFFF, U+FE0F aus TYPE_ICONS entfernt); SyntaxError vollständig behoben"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",

@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.9';
+const CURRENT_VERSION = '0.3.0';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -567,8 +567,8 @@ const LOGO_SVG = `<svg viewBox="0 0 108 108" xmlns="http://www.w3.org/2000/svg">
 
 // Typ-Icons nach typeName (spiegelt App-Icons wider)
 const TYPE_ICONS = {
-  Electricity:'⚡', Gas:'🔥', Water:'💧', HotWater:'🌡️',
-  ColdWater:'❄️', Heat:'🏠', Cooling:'🧊', Oil:'🛢️', Other:'📟'
+  Electricity:'⚡', Gas:'🔥', Water:'💧', HotWater:'🌡',
+  ColdWater:'❄', Heat:'🏠', Cooling:'🧊', Oil:'🛢', Other:'📟'
 };
 
 const html = `<!DOCTYPE html>
@@ -1047,16 +1047,16 @@ async function fetchData() {
     const d   = await fetch('/api/data').then(r => r.json());
     const con = document.getElementById('data-container');
     if (!d.data || !Object.keys(d.data).length) {
-      con.innerHTML = '<div class="empty-state"><div class="ico">\u1F4E1</div><p>Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App.</p></div>';
+      con.innerHTML = '<div class="empty-state"><div class="ico">\uD83D\uDCE1</div><p>Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App.</p></div>';
       return;
     }
     let html = '';
     for (const [house, apts] of Object.entries(d.data)) {
-      html += '<div class="house-block"><div class="house-title">\u1F3E0 '+esc(house)+'</div>';
+      html += '<div class="house-block"><div class="house-title">\uD83C\uDFE0 '+esc(house)+'</div>';
       for (const [apt, meters] of Object.entries(apts)) {
-        html += '<div class="apt-block"><div class="apt-title">\u1F3D8 '+esc(apt)+'</div><div class="meters-grid">';
+        html += '<div class="apt-block"><div class="apt-title">\uD83C\uDFD8 '+esc(apt)+'</div><div class="meters-grid">';
         for (const [key, m] of Object.entries(meters)) {
-          const icon   = TYPE_ICONS[m.typeName] || '\u1F4DF';
+          const icon   = TYPE_ICONS[m.typeName] || '\uD83D\uDCDF';
           const histId = 'h-'+CSS.escape(house+apt+key);
           const rows   = (m.history||[]).slice().reverse().map(h =>
             '<div class="hist-row"><span>'+esc(fmtDt(h.ts))+'</span><span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span></div>'
@@ -1071,9 +1071,9 @@ async function fetchData() {
                 '<span class="mc-value">'+(m.latest !== undefined ? m.latest : '\u2013')+'</span>'+
                 '<span class="mc-unit">'+esc(m.unit||'')+'</span>'+
               '</div>'+
-              '<div class="mc-date">\u1F4C5 '+esc(m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '\u2013')+'</div>'+
+              '<div class="mc-date">\uD83D\uDCC5 '+esc(m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '\u2013')+'</div>'+
               (rows ?
-                '<button class="mc-hist-toggle" onclick="toggleHist(\''+histId+'\')">\u1F4C8 Verlauf ('+(m.history||[]).length+')</button>'+
+                '<button class="mc-hist-toggle" onclick="toggleHist(\''+histId+'\')">\uD83D\uDCC8 Verlauf ('+(m.history||[]).length+')</button>'+
                 '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
               : '')+
             '</div>';
@@ -1085,7 +1085,7 @@ async function fetchData() {
     con.innerHTML = html;
   } catch(e) {
     document.getElementById('data-container').innerHTML =
-      '<div class="empty-state"><div class="ico">\u26A0\uFE0F</div><p>Fehler: '+esc(e.message)+'</p></div>';
+      '<div class="empty-state"><div class="ico">\u26A0</div><p>Fehler: '+esc(e.message)+'</p></div>';
   }
 }
 
@@ -1134,7 +1134,7 @@ async function doImport() {
     });
     const d = await r.json();
     if (d.ok) { showResult('ok',   '\u2705 '+d.summary); fetchData(); fetchStats(); }
-    else       { showResult('warn','\u26A0\uFE0F '+d.summary+(d.errors.length ? '<br>'+d.errors.slice(0,5).map(esc).join('<br>') : '')); }
+    else       { showResult('warn','\u26A0 '+d.summary+(d.errors.length ? '<br>'+d.errors.slice(0,5).map(esc).join('<br>') : '')); }
   } catch(e) { showResult('err', '\u274C Netzwerkfehler: '+esc(e.message)); }
   finally { btn.disabled = false; btn.textContent = '\u2B06 Importieren'; }
 }
@@ -1246,7 +1246,7 @@ async function checkVersion() {
       st.innerHTML = '<span class="badge-err">\u26A0 GitHub nicht erreichbar</span>';
       updBtn.style.display = 'none';
     } else if (d.updateAvailable) {
-      st.innerHTML = '<span class="badge-new">\u1F195 Update verf\u00FCgbar</span>';
+      st.innerHTML = '<span class="badge-new">\uD83C\uDD95 Update verf\u00FCgbar</span>';
       updBtn.style.display = '';
     } else {
       st.innerHTML = '<span class="badge-ok">\u2713 Aktuell</span>';
