@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.8';
+const CURRENT_VERSION = '0.2.9';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -1007,7 +1007,7 @@ input.search {
 <script>
 const TYPE_ICONS = ${JSON.stringify(TYPE_ICONS)};
 
-// ── Tab-Navigation ────────────────────────────────────────────────────────────
+// \u2500\u2500 Tab-Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 window.showTab = function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1017,7 +1017,7 @@ window.showTab = function showTab(name) {
   if (name === 'system') checkVersion();
 }
 
-// ── Hilfsfunktionen ───────────────────────────────────────────────────────────
+// \u2500\u2500 Hilfsfunktionen \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmtDt  = ts => new Date(ts).toLocaleString('de-DE',{hour12:false});
 const fmtUp  = s  => Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m '+Math.floor(s%60)+'s';
@@ -1026,37 +1026,37 @@ const fmtLog = ts => {
   return d.toLocaleTimeString('de-DE',{hour12:false})+'.'+String(d.getMilliseconds()).padStart(3,'0');
 };
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
+// \u2500\u2500 Stats \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 async function fetchStats() {
   try {
     const d = await fetch('/api/stats').then(r => r.json());
     document.getElementById('st-rx').textContent = d.readingsReceived;
     document.getElementById('st-lg').textContent = d.logEntries;
     document.getElementById('st-up').textContent = fmtUp(d.uptime);
-    document.getElementById('st-live').textContent = '● Live';
+    document.getElementById('st-live').textContent = '\u25CF Live';
     document.getElementById('st-live').style.color = 'var(--accent)';
   } catch {
-    document.getElementById('st-live').textContent = '✗ Getrennt';
+    document.getElementById('st-live').textContent = '\u2717 Getrennt';
     document.getElementById('st-live').style.color = 'var(--danger)';
   }
 }
 
-// ── DATEN-TAB ─────────────────────────────────────────────────────────────────
+// \u2500\u2500 DATEN-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 async function fetchData() {
   try {
     const d   = await fetch('/api/data').then(r => r.json());
     const con = document.getElementById('data-container');
     if (!d.data || !Object.keys(d.data).length) {
-      con.innerHTML = '<div class="empty-state"><div class="ico">📡</div><p>Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App.</p></div>';
+      con.innerHTML = '<div class="empty-state"><div class="ico">\u1F4E1</div><p>Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App.</p></div>';
       return;
     }
     let html = '';
     for (const [house, apts] of Object.entries(d.data)) {
-      html += '<div class="house-block"><div class="house-title">🏠 '+esc(house)+'</div>';
+      html += '<div class="house-block"><div class="house-title">\u1F3E0 '+esc(house)+'</div>';
       for (const [apt, meters] of Object.entries(apts)) {
-        html += '<div class="apt-block"><div class="apt-title">🏘 '+esc(apt)+'</div><div class="meters-grid">';
+        html += '<div class="apt-block"><div class="apt-title">\u1F3D8 '+esc(apt)+'</div><div class="meters-grid">';
         for (const [key, m] of Object.entries(meters)) {
-          const icon   = TYPE_ICONS[m.typeName] || '📟';
+          const icon   = TYPE_ICONS[m.typeName] || '\u1F4DF';
           const histId = 'h-'+CSS.escape(house+apt+key);
           const rows   = (m.history||[]).slice().reverse().map(h =>
             '<div class="hist-row"><span>'+esc(fmtDt(h.ts))+'</span><span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span></div>'
@@ -1068,12 +1068,12 @@ async function fetchData() {
                 '<div class="mc-badge">'+esc(m.typeName||'?')+'</div>'+
               '</div>'+
               '<div class="mc-value-row">'+
-                '<span class="mc-value">'+(m.latest !== undefined ? m.latest : '–')+'</span>'+
+                '<span class="mc-value">'+(m.latest !== undefined ? m.latest : '\u2013')+'</span>'+
                 '<span class="mc-unit">'+esc(m.unit||'')+'</span>'+
               '</div>'+
-              '<div class="mc-date">📅 '+esc(m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '–')+'</div>'+
+              '<div class="mc-date">\u1F4C5 '+esc(m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '\u2013')+'</div>'+
               (rows ?
-                '<button class="mc-hist-toggle" onclick="toggleHist(\''+histId+'\')">📈 Verlauf ('+(m.history||[]).length+')</button>'+
+                '<button class="mc-hist-toggle" onclick="toggleHist(\''+histId+'\')">\u1F4C8 Verlauf ('+(m.history||[]).length+')</button>'+
                 '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
               : '')+
             '</div>';
@@ -1085,7 +1085,7 @@ async function fetchData() {
     con.innerHTML = html;
   } catch(e) {
     document.getElementById('data-container').innerHTML =
-      '<div class="empty-state"><div class="ico">⚠️</div><p>Fehler: '+esc(e.message)+'</p></div>';
+      '<div class="empty-state"><div class="ico">\u26A0\uFE0F</div><p>Fehler: '+esc(e.message)+'</p></div>';
   }
 }
 
@@ -1094,7 +1094,7 @@ function toggleHist(id) {
   if (el) el.classList.toggle('open');
 }
 
-// ── IMPORT-TAB ────────────────────────────────────────────────────────────────
+// \u2500\u2500 IMPORT-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let importData = null;
 let dz = null; // wird in initDropzone() gesetzt
 
@@ -1103,7 +1103,7 @@ function loadFile(file) {
   const r = new FileReader();
   r.onload = e => {
     try { importData = JSON.parse(e.target.result); showPreview(importData, file.name); }
-    catch { showResult('err', '❌ Ungültige JSON-Datei'); }
+    catch { showResult('err', '\u274C Ung\u00FCltige JSON-Datei'); }
   };
   r.readAsText(file);
 }
@@ -1114,9 +1114,9 @@ function showPreview(d, fname) {
     prow('Datei',      esc(fname)) +
     prow('Schema',     d.SchemaVersion||'?') +
     prow('Wohnungen',  (d.Apartments||[]).length) +
-    prow('Zähler',     (d.Meters||[]).length) +
+    prow('Z\u00E4hler',     (d.Meters||[]).length) +
     prow('Ablesungen', (d.Readings||[]).length) +
-    prow('Kompatibel', valid ? '✅ Ja' : '❌ Nein – Pflichtfelder fehlen');
+    prow('Kompatibel', valid ? '\u2705 Ja' : '\u274C Nein \u2013 Pflichtfelder fehlen');
   document.getElementById('preview-box').style.display = 'block';
   document.getElementById('imp-btn').disabled = !valid;
 }
@@ -1126,17 +1126,17 @@ async function doImport() {
   if (!importData) return;
   const house = document.getElementById('imp-house').value.trim() || 'MeinHaus';
   const btn   = document.getElementById('imp-btn');
-  btn.disabled = true; btn.textContent = '⏳ Importiere…';
+  btn.disabled = true; btn.textContent = '\u23F3 Importiere\u2026';
   try {
     const r = await fetch('/api/import', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({...importData, HouseName: house})
     });
     const d = await r.json();
-    if (d.ok) { showResult('ok',   '✅ '+d.summary); fetchData(); fetchStats(); }
-    else       { showResult('warn','⚠️ '+d.summary+(d.errors.length ? '<br>'+d.errors.slice(0,5).map(esc).join('<br>') : '')); }
-  } catch(e) { showResult('err', '❌ Netzwerkfehler: '+esc(e.message)); }
-  finally { btn.disabled = false; btn.textContent = '⬆ Importieren'; }
+    if (d.ok) { showResult('ok',   '\u2705 '+d.summary); fetchData(); fetchStats(); }
+    else       { showResult('warn','\u26A0\uFE0F '+d.summary+(d.errors.length ? '<br>'+d.errors.slice(0,5).map(esc).join('<br>') : '')); }
+  } catch(e) { showResult('err', '\u274C Netzwerkfehler: '+esc(e.message)); }
+  finally { btn.disabled = false; btn.textContent = '\u2B06 Importieren'; }
 }
 function showResult(type, msg) {
   const rb = document.getElementById('imp-result');
@@ -1150,7 +1150,7 @@ function clearImport() {
   document.getElementById('imp-btn').disabled = true;
 }
 
-// ── LOG-TAB ───────────────────────────────────────────────────────────────────
+// \u2500\u2500 LOG-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let newestTs = 0, displayed = [], logTimer;
 const lc  = () => document.getElementById('lc');
 const gf  = () => ({
@@ -1217,13 +1217,13 @@ function applyLogFilter() {
 function exportLogs() {
   const f = gf();
   const txt = displayed.filter(e=>matchLog(e,f))
-    .map(e=>'['+new Date(e.ts).toISOString()+'] ['+e.level.toUpperCase()+'] ['+e.category+'] '+e.message+(e.detail?' — '+e.detail:'')).join('\\n');
+    .map(e=>'['+new Date(e.ts).toISOString()+'] ['+e.level.toUpperCase()+'] ['+e.category+'] '+e.message+(e.detail?' \u2014 '+e.detail:'')).join('\\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
   a.download = 'metermaster-log-'+new Date().toISOString().slice(0,19)+'.txt';
   a.click();
 }
-// Log-Filter EventListener → werden in initLogFilters() gesetzt
+// Log-Filter EventListener \u2192 werden in initLogFilters() gesetzt
 
 function startLive() {
   clearInterval(logTimer);
@@ -1231,7 +1231,7 @@ function startLive() {
 }
 
 
-// ── SYSTEM-TAB ────────────────────────────────────────────────────────────────
+// \u2500\u2500 SYSTEM-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 async function checkVersion() {
   const btn   = document.getElementById('sv-check-btn');
   const spin  = document.getElementById('sv-spin');
@@ -1239,21 +1239,21 @@ async function checkVersion() {
   btn.disabled = true; spin.style.display = 'inline';
   try {
     const d = await fetch('/api/version').then(r => r.json());
-    document.getElementById('sv-cur').textContent = d.current || '–';
-    document.getElementById('sv-lat').textContent = d.latest  || (d.error ? '(Fehler)' : '–');
+    document.getElementById('sv-cur').textContent = d.current || '\u2013';
+    document.getElementById('sv-lat').textContent = d.latest  || (d.error ? '(Fehler)' : '\u2013');
     const st = document.getElementById('sv-status');
     if (d.error) {
-      st.innerHTML = '<span class="badge-err">⚠ GitHub nicht erreichbar</span>';
+      st.innerHTML = '<span class="badge-err">\u26A0 GitHub nicht erreichbar</span>';
       updBtn.style.display = 'none';
     } else if (d.updateAvailable) {
-      st.innerHTML = '<span class="badge-new">🆕 Update verfügbar</span>';
+      st.innerHTML = '<span class="badge-new">\u1F195 Update verf\u00FCgbar</span>';
       updBtn.style.display = '';
     } else {
-      st.innerHTML = '<span class="badge-ok">✓ Aktuell</span>';
+      st.innerHTML = '<span class="badge-ok">\u2713 Aktuell</span>';
       updBtn.style.display = 'none';
     }
   } catch(e) {
-    document.getElementById('sv-status').innerHTML = '<span class="badge-err">⚠ Netzwerkfehler</span>';
+    document.getElementById('sv-status').innerHTML = '<span class="badge-err">\u26A0 Netzwerkfehler</span>';
   }
   btn.disabled = false; spin.style.display = 'none';
 }
@@ -1264,25 +1264,25 @@ async function doUpdate() {
   const outBox = document.getElementById('sv-out');
   if (!confirm('Update installieren und Adapter neu starten?')) return;
   btn.style.display = 'none'; spin.style.display = 'inline';
-  outBox.style.display = 'block'; outBox.textContent = '⏳ Update läuft…';
+  outBox.style.display = 'block'; outBox.textContent = '\u23F3 Update l\u00E4uft\u2026';
   try {
     const r = await fetch('/api/update', { method: 'POST' });
     const d = await r.json();
     if (d.ok) {
-      outBox.textContent = '✅ Update erfolgreich.\nAdapter wird neu gestartet…\n\n' + (d.output||'');
-      document.getElementById('sv-status').innerHTML = '<span class="badge-ok">✓ Neu gestartet</span>';
-      setTimeout(() => { outBox.textContent += '\n⟳ Seite wird neu geladen…'; location.reload(); }, 8000);
+      outBox.textContent = '\u2705 Update erfolgreich.\nAdapter wird neu gestartet\u2026\n\n' + (d.output||'');
+      document.getElementById('sv-status').innerHTML = '<span class="badge-ok">\u2713 Neu gestartet</span>';
+      setTimeout(() => { outBox.textContent += '\n\u27F3 Seite wird neu geladen\u2026'; location.reload(); }, 8000);
     } else {
-      outBox.textContent = '❌ Fehler:\n' + (d.error||'') + '\n\n' + (d.output||'');
+      outBox.textContent = '\u274C Fehler:\n' + (d.error||'') + '\n\n' + (d.output||'');
       btn.style.display = ''; spin.style.display = 'none';
     }
   } catch(e) {
-    outBox.textContent = '❌ Netzwerkfehler: ' + e.message;
+    outBox.textContent = '\u274C Netzwerkfehler: ' + e.message;
     btn.style.display = ''; spin.style.display = 'none';
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function initTabs() {
   // Tab-Buttons
   ['data','import','logs','system'].forEach(name => {

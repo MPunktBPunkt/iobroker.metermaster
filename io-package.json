@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.8",
+    "version": "0.2.9",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -119,6 +119,10 @@
       "0.2.8": {
         "en": "Bugfix: reverted external app.js — relative URL resolved against ioBroker admin proxy, not port 8089; back to inline script (no top-level crash possible)",
         "de": "Bugfix: externe app.js rückgängig — relative URL wurde gegen ioBroker-Admin-Proxy aufgelöst, nicht Port 8089; zurück zu Inline-Script (kein top-level Crash möglich)"
+      },
+      "0.2.9": {
+        "en": "Bugfix: all non-ASCII characters (emojis, dashes, special chars) in browser JS escaped as \\uXXXX — eliminates SyntaxError caused by U+FE0F Variation Selector and other multi-byte chars",
+        "de": "Bugfix: alle Nicht-ASCII-Zeichen (Emojis, Gedankenstriche, Sonderzeichen) im Browser-JS als \\uXXXX escaped — behebt SyntaxError durch U+FE0F Variation Selector und andere Multi-Byte-Zeichen"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",
