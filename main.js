@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.5';
+const CURRENT_VERSION = '0.2.6';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -643,6 +643,9 @@ nav {
   color: var(--text-dim); border-bottom: 3px solid transparent;
   transition: color .2s, border-color .2s; user-select: none;
   pointer-events: all !important;
+  /* button-Reset */
+  background: none; border-top: none; border-left: none; border-right: none;
+  outline: none; font-family: inherit; -webkit-appearance: none; appearance: none;
 }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--secondary); border-bottom-color: var(--primary); }
@@ -881,10 +884,10 @@ input.search {
 
 <!-- ══ NAV ═══════════════════════════════════════════════════════════════════ -->
 <nav>
-  <div class="tab active" id="tab-data"   data-tab="data"  >📊 Daten</div>
-  <div class="tab"        id="tab-import" data-tab="import">📥 Import</div>
-  <div class="tab"        id="tab-logs"   data-tab="logs"  >📋 Logs</div>
-  <div class="tab"        id="tab-system" data-tab="system">⚙️ System</div>
+  <button class="tab active" id="tab-data"   data-tab="data"   onclick="showTab('data')"  >📊 Daten</button>
+  <button class="tab"        id="tab-import" data-tab="import" onclick="showTab('import')">📥 Import</button>
+  <button class="tab"        id="tab-logs"   data-tab="logs"   onclick="showTab('logs')"  >📋 Logs</button>
+  <button class="tab"        id="tab-system" data-tab="system" onclick="showTab('system')">⚙️ System</button>
 </nav>
 
 <!-- ══ DATEN ══════════════════════════════════════════════════════════════════ -->
@@ -1002,7 +1005,7 @@ input.search {
 const TYPE_ICONS = ${JSON.stringify(TYPE_ICONS)};
 
 // ── Tab-Navigation ────────────────────────────────────────────────────────────
-function showTab(name) {
+window.showTab = function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');

@@ -2,7 +2,7 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.2.5-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.2.6-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -218,6 +218,11 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.2.6 (2026-03-07)
+- **Bugfix:** Tab-Wechsel: `<div>`-Elemente durch native `<button>` ersetzt — Klick-Events können durch Browser/CSP nicht geblockt werden
+- `showTab()` als `window.showTab` verfügbar (globaler Scope, onclick-Attribut funktioniert zuverlässig)
+- CSS-Reset für button-Elemente (kein Rahmen, kein appearance-Artefakt)
 
 ### 0.2.5 (2026-03-07)
 - **Bugfix:** Cache-Wiederherstellung: Key-Format fehlte Namespace (`metermaster.0.`) → history/unit/typeName nie geladen, Daten-Tab immer leer

@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -107,6 +107,10 @@
       "0.2.5": {
         "en": "Bugfix: cache restore used wrong key format (missing namespace) → data tab always empty after restart; all top-level addEventListener moved into init to prevent crash on null element",
         "de": "Bugfix: Cache-Wiederherstellung nutzte falsches Key-Format (fehlender Namespace) → Daten-Tab nach Neustart immer leer; alle top-level addEventListener in init() verschoben um TypeError bei null-Element zu verhindern"
+      },
+      "0.2.6": {
+        "en": "Bugfix: tab buttons replaced div with native button elements; showTab() exposed as window.showTab; button CSS reset",
+        "de": "Bugfix: Tab-Elemente von div auf native button-Elemente umgestellt; showTab() als window.showTab verfügbar; button CSS-Reset"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",

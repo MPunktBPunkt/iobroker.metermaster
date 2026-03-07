@@ -1,6 +1,6 @@
 {
   "name": "iobroker.metermaster",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Empfängt Zählerablesungen von der MeterMaster Android-App mit korrekten Zeitstempeln und History",
   "author": {
     "name": "MPunktBPunkt",
