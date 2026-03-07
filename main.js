@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.2.4';
+const CURRENT_VERSION = '0.2.5';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -87,10 +87,13 @@ adapter.on('unload', (callback) => {
 // ─── Cache-Wiederherstellung beim Start ───────────────────────────────────────
 async function restoreCacheFromStates() {
     try {
+        // getStatesAsync('*') gibt Keys MIT vollständigem Namespace zurück:
+        // "metermaster.0.MeinHaus.Westerheim.Wasseruhr.readings.latest"
         const allStates = await adapter.getStatesAsync('*');
         if (!allStates) return;
 
-        // Alle *.readings.latest States finden → daraus Struktur ableiten
+        const ns = `${adapter.namespace}.`; // "metermaster.0."
+
         const latestKeys = Object.keys(allStates).filter(k =>
             k.endsWith('.readings.latest') && allStates[k] && allStates[k].val !== null
         );
@@ -102,37 +105,29 @@ async function restoreCacheFromStates() {
 
         let restored = 0;
         for (const key of latestKeys) {
-            // Key-Format: metermaster.0.{house}.{apt}.{meter}.readings.latest
-            // adapter.getStatesAsync gibt Keys ohne Namespace zurück: {house}.{apt}.{meter}.readings.latest
-            const parts = key.replace(/^metermaster\.\d+\./, '').split('.');
-            if (parts.length < 4) continue;
-            // Letzten 2 Teile = "readings.latest" abschneiden → [house, apt, meter]
+            // Key ohne Namespace: "MeinHaus.Westerheim.Wasseruhr.readings.latest"
+            const relative = key.startsWith(ns) ? key.slice(ns.length) : key;
+            const parts    = relative.split('.');
+            // Letzten 2 Teile ("readings", "latest") entfernen → [house, apt, meter, ...]
             const segments = parts.slice(0, parts.length - 2);
             if (segments.length < 3) continue;
             const [house, apt, ...meterParts] = segments;
             const meter = meterParts.join('.');
 
-            const base     = segments.join('.');
-            const latest   = allStates[key]?.val;
-            const dateKey  = `${base}.readings.latestDate`;
-            const histKey  = `${base}.readings.history`;
-            const unitKey  = `${base}.unit`;
-            const typeKey  = `${base}.typeName`;
+            const base = `${ns}${segments.join('.')}`;  // vollständiger Pfad mit Namespace
 
-            const latestDate = allStates[dateKey]?.val  || '';
-            const unit       = allStates[unitKey]?.val  || '';
-            const typeName   = allStates[typeKey]?.val  || '';
-            const histRaw    = allStates[histKey]?.val  || '[]';
+            const latest     = allStates[key]?.val;
+            const latestDate = allStates[`${base}.readings.latestDate`]?.val || '';
+            const unit       = allStates[`${base}.unit`]?.val               || '';
+            const typeName   = allStates[`${base}.typeName`]?.val           || '';
+            const histRaw    = allStates[`${base}.readings.history`]?.val   || '[]';
 
             let history = [];
             try { history = JSON.parse(histRaw); if (!Array.isArray(history)) history = []; } catch {}
 
-            // Cache direkt befüllen (ohne cacheReading um Duplikate zu vermeiden)
-            if (!receivedData[house])           receivedData[house] = {};
-            if (!receivedData[house][apt])      receivedData[house][apt] = {};
-            receivedData[house][apt][meter] = {
-                latest, latestDate, unit, typeName, history
-            };
+            if (!receivedData[house])       receivedData[house] = {};
+            if (!receivedData[house][apt])  receivedData[house][apt] = {};
+            receivedData[house][apt][meter] = { latest, latestDate, unit, typeName, history };
             restored++;
         }
 
@@ -1095,11 +1090,7 @@ function toggleHist(id) {
 
 // ── IMPORT-TAB ────────────────────────────────────────────────────────────────
 let importData = null;
-const dz = document.getElementById('drop-zone');
-dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
-dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
-document.getElementById('file-in').addEventListener('change', e => loadFile(e.target.files[0]));
+let dz = null; // wird in initDropzone() gesetzt
 
 function loadFile(file) {
   if (!file) return;
@@ -1226,9 +1217,7 @@ function exportLogs() {
   a.download = 'metermaster-log-'+new Date().toISOString().slice(0,19)+'.txt';
   a.click();
 }
-['fl','fc'].forEach(id => document.getElementById(id).addEventListener('change', applyLogFilter));
-document.getElementById('ft').addEventListener('input', applyLogFilter);
-document.getElementById('ar').addEventListener('change', e => { if(e.target.checked) startLive(); else clearInterval(logTimer); });
+// Log-Filter EventListener → werden in initLogFilters() gesetzt
 
 function startLive() {
   clearInterval(logTimer);
@@ -1289,7 +1278,7 @@ async function doUpdate() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 function initTabs() {
-  // Direkte Listener auf jeden Tab
+  // Tab-Buttons
   ['data','import','logs','system'].forEach(name => {
     const el = document.getElementById('tab-' + name);
     if (el) {
@@ -1298,7 +1287,7 @@ function initTabs() {
       el.style.pointerEvents = 'all';
     }
   });
-  // Event Delegation auf nav als Fallback (fängt auch Klicks auf Kind-Elemente)
+  // Event Delegation auf nav als Fallback
   const nav = document.querySelector('nav');
   if (nav) {
     nav.addEventListener('click', e => {
@@ -1306,10 +1295,31 @@ function initTabs() {
       if (tab) { e.stopPropagation(); showTab(tab.dataset.tab); }
     });
   }
+  // System-Tab Buttons
   const chkBtn = document.getElementById('sv-check-btn');
   if (chkBtn) chkBtn.addEventListener('click', checkVersion);
   const updBtn = document.getElementById('sv-upd-btn');
   if (updBtn) updBtn.addEventListener('click', doUpdate);
+
+  // Dropzone
+  dz = document.getElementById('drop-zone');
+  if (dz) {
+    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
+    dz.addEventListener('drop',      e => { e.preventDefault(); dz.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
+  }
+  const fi = document.getElementById('file-in');
+  if (fi) fi.addEventListener('change', e => loadFile(e.target.files[0]));
+
+  // Log-Filter
+  ['fl','fc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', applyLogFilter);
+  });
+  const ft = document.getElementById('ft');
+  if (ft) ft.addEventListener('input', applyLogFilter);
+  const ar = document.getElementById('ar');
+  if (ar) ar.addEventListener('change', e => { if(e.target.checked) startLive(); else clearInterval(logTimer); });
 }
 
 async function init() {

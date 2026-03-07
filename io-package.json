@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -103,6 +103,10 @@
       "0.2.4": {
         "en": "Cache restore on startup (data tab populated after restart); version shown in header; robust tab switching with event delegation",
         "de": "Cache-Wiederherstellung beim Start (Daten-Tab nach Neustart befüllt); Version im Header; robusteres Tab-Switching mit Event-Delegation"
+      },
+      "0.2.5": {
+        "en": "Bugfix: cache restore used wrong key format (missing namespace) → data tab always empty after restart; all top-level addEventListener moved into init to prevent crash on null element",
+        "de": "Bugfix: Cache-Wiederherstellung nutzte falsches Key-Format (fehlender Namespace) → Daten-Tab nach Neustart immer leer; alle top-level addEventListener in init() verschoben um TypeError bei null-Element zu verhindern"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",

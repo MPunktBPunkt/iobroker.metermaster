@@ -2,7 +2,7 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.2.4-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.2.5-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -218,6 +218,11 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.2.5 (2026-03-07)
+- **Bugfix:** Cache-Wiederherstellung: Key-Format fehlte Namespace (`metermaster.0.`) → history/unit/typeName nie geladen, Daten-Tab immer leer
+- **Bugfix:** `addEventListener`-Aufrufe liefen beim Script-Load synchron — bei `null`-Element `TypeError` → `init()` nie aufgerufen → Tabs ohne Funktion
+- Alle EventListener in `initTabs()` verschoben (Dropzone, Log-Filter, System-Buttons)
 
 ### 0.2.4 (2026-03-07)
 - **Bugfix:** Daten-Tab nach Adapter-Neustart leer — Cache wird jetzt beim Start aus ioBroker-States wiederhergestellt
