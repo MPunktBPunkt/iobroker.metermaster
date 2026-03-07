@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -111,6 +111,10 @@
       "0.2.6": {
         "en": "Bugfix: tab buttons replaced div with native button elements; showTab() exposed as window.showTab; button CSS reset",
         "de": "Bugfix: Tab-Elemente von div auf native button-Elemente umgestellt; showTab() als window.showTab verfügbar; button CSS-Reset"
+      },
+      "0.2.7": {
+        "en": "Bugfix: JavaScript moved from inline <script> to external /app.js — fixes CSP blocking in ioBroker admin proxy (tabs non-functional, data tab always empty)",
+        "de": "Bugfix: JavaScript aus inline <script> in externe /app.js verschoben — behebt CSP-Blockierung durch ioBroker-Admin-Proxy (Tabs ohne Funktion, Daten-Tab leer)"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",
