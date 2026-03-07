@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.3.1';
+const CURRENT_VERSION = '0.3.2';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -1072,10 +1072,10 @@ async function fetchData() {
                 '<span class="mc-unit">'+esc(m.unit||'')+'</span>'+
               '</div>'+
               '<div class="mc-date">\uD83D\uDCC5 '+esc(m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '\u2013')+'</div>'+
-              (rows ?
-                '<button class="mc-hist-toggle" onclick="toggleHist(\''+histId+'\')">\uD83D\uDCC8 Verlauf ('+(m.history||[]).length+')</button>'+
-                '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
-              : '')+
+              (rows
+                ? '<button class="mc-hist-toggle" data-hist="'+histId+'">\uD83D\uDCC8 Verlauf ('+(m.history||[]).length+')</button>'+
+                  '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
+                : '')+
             '</div>';
         }
         html += '</div></div>';
@@ -1306,6 +1306,12 @@ function initTabs() {
   if (chkBtn) chkBtn.addEventListener('click', checkVersion);
   const updBtn = document.getElementById('sv-upd-btn');
   if (updBtn) updBtn.addEventListener('click', doUpdate);
+
+  // Verlauf-Toggle via Event Delegation (kein onclick-Attribut nötig)
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.mc-hist-toggle');
+    if (btn && btn.dataset.hist) toggleHist(btn.dataset.hist);
+  });
 
   // Dropzone
   dz = document.getElementById('drop-zone');

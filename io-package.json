@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -131,6 +131,10 @@
       "0.3.1": {
         "en": "Bugfix: literal newlines in single-quoted JS strings inside template literal caused SyntaxError on browser line 543; replaced with String.fromCharCode(10)",
         "de": "Bugfix: Literal-Newlines in Single-Quoted JS-Strings im Template-Literal verursachten SyntaxError auf Browser-Zeile 543; durch String.fromCharCode(10) ersetzt"
+      },
+      "0.3.2": {
+        "en": "Bugfix: duplicate fetchData in template caused onclick SyntaxError on line 543; removed stale block, kept correct data-hist version",
+        "de": "Bugfix: doppeltes fetchData im Template verursachte onclick SyntaxError auf Zeile 543; veralteten Block entfernt, korrekte data-hist Version behalten"
       }
     },
     "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",
