@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.3.2';
+const CURRENT_VERSION = '0.4.0';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -856,6 +856,23 @@ input.search {
   font-size:.78em; color:var(--text-dim); max-height:180px; overflow-y:auto;
   white-space:pre-wrap; display:none;
 }
+.cmd-row {
+  display:flex; align-items:center; gap:8px;
+  background:var(--bg-deep); border:1px solid var(--border);
+  border-radius:8px; padding:8px 10px;
+}
+.cmd-code {
+  flex:1; font-family:Consolas,monospace; font-size:.8em;
+  color:var(--secondary); background:none; border:none; outline:none;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.cmd-copy {
+  flex-shrink:0; background:var(--bg-card); border:1px solid var(--border);
+  border-radius:6px; padding:4px 8px; cursor:pointer; font-size:.88em;
+  color:var(--text-dim); transition:all .15s;
+}
+.cmd-copy:hover  { background:var(--primary); color:#fff; border-color:var(--primary); }
+.cmd-copy.copied { background:var(--accent);  color:#fff; border-color:var(--accent); }
 
 #ni {
   position: fixed; bottom: 22px; right: 22px;
@@ -993,11 +1010,28 @@ input.search {
       <a href="https://github.com/MPunktBPunkt/iobroker.metermaster" target="_blank"
          style="color:var(--primary);font-size:.84em">GitHub ↗</a>
     </div>
-    <div class="ver-row"><span class="ver-label">Update-Anleitung</span>
-      <span class="ver-val" style="font-family:inherit;font-size:.82em;color:var(--text-dim)">
-        iobroker upgrade metermaster &lt;URL&gt;
-      </span>
+  </div>
+
+  <div class="sys-card">
+    <h3>🔄 Update-Befehle</h3>
+    <p style="font-size:.82em;color:var(--text-dim);margin:0 0 12px">
+      Adapter aktualisieren — Befehle in der ioBroker-Konsole ausführen:
+    </p>
+    <div class="cmd-row">
+      <code class="cmd-code">iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster</code>
+      <button class="cmd-copy" onclick="copyCmd(this)" data-cmd="iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster" title="Kopieren">📋</button>
     </div>
+    <div class="cmd-row" style="margin-top:8px">
+      <code class="cmd-code">iobroker restart metermaster.0</code>
+      <button class="cmd-copy" onclick="copyCmd(this)" data-cmd="iobroker restart metermaster.0" title="Kopieren">📋</button>
+    </div>
+    <div class="cmd-row" style="margin-top:8px">
+      <code class="cmd-code">sleep 5 &amp;&amp; iobroker status metermaster.0</code>
+      <button class="cmd-copy" onclick="copyCmd(this)" data-cmd="sleep 5 && iobroker status metermaster.0" title="Kopieren">📋</button>
+    </div>
+    <p style="font-size:.78em;color:var(--text-dim);margin:10px 0 0">
+      💡 Tipp: Alle drei Befehle nacheinander ausführen — warten bis jeder abgeschlossen ist.
+    </p>
   </div>
 
 </div>
@@ -1014,6 +1048,7 @@ window.showTab = function showTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('page-'+name).classList.add('active');
   if (name === 'data')   fetchData();
+  if (name === 'logs')   fetchLogs();
   if (name === 'system') checkVersion();
 }
 
@@ -1283,6 +1318,26 @@ async function doUpdate() {
 }
 
 // \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ── Copy-to-Clipboard ─────────────────────────────────────────────────────────
+function copyCmd(btn) {
+  const cmd = btn.dataset.cmd;
+  if (!cmd) return;
+  navigator.clipboard.writeText(cmd).then(() => {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1800);
+  }).catch(() => {
+    // Fallback für ältere Browser / HTTP-Kontext
+    const ta = document.createElement('textarea');
+    ta.value = cmd; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✓'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+
 function initTabs() {
   // Tab-Buttons
   ['data','import','logs','system'].forEach(name => {

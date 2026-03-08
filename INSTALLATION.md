@@ -104,7 +104,7 @@ metermaster.0
 ### Verbindungstest
 ```
 GET http://192.168.178.113:8089/api/ping
-→ { "ok": true, "adapter": "metermaster", "version": "1.0.0" }
+→ { "ok": true, "adapter": "metermaster", "version": "0.3.2" }
 ```
 
 ### Einzelne Ablesung
