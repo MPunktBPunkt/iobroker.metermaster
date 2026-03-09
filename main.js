@@ -162,6 +162,9 @@ function startHttpServer() {
         if (req.method === 'GET'  && url === '/api/version') { serveVersion(res);        return; }
         if (req.method === 'POST' && url === '/api/update')  { handleUpdate(req, res);   return; }
 
+        // Favicon ohne Auth durchlassen (Browser ruft das automatisch ab)
+        if (url === '/favicon.ico') { res.writeHead(204); res.end(); return; }
+
         // Basic Auth für schreibende Endpunkte
         if (user && password) {
             const authHeader = req.headers['authorization'] || '';
@@ -459,26 +462,40 @@ function serveStats(res) {
 // ─── Web-Oberfläche ───────────────────────────────────────────────────────────
 // ─── Web-Oberfläche ───────────────────────────────────────────────────────────
 // ─── Versions-Check (GitHub) ──────────────────────────────────────────────────
-function fetchGitHubVersion() {
+function githubGet(path) {
     return new Promise((resolve, reject) => {
-        const opts = {
+        const req = https.get({
             hostname: 'api.github.com',
-            path: `/repos/${GITHUB_REPO}/releases/latest`,
+            path,
             headers: { 'User-Agent': 'iobroker.metermaster' }
-        };
-        const req = https.get(opts, res => {
+        }, res => {
             let data = '';
             res.on('data', c => data += c);
-            res.on('end', () => {
-                try {
-                    const tag = JSON.parse(data).tag_name || '';
-                    resolve(tag.replace(/^v/, '') || '0.0.0');
-                } catch(e) { reject(e); }
-            });
+            res.on('end', () => { try { resolve({ status: res.statusCode, body: JSON.parse(data) }); } catch(e) { reject(e); } });
         });
         req.on('error', reject);
         req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
     });
+}
+
+async function fetchGitHubVersion() {
+    // 1. Versuch: Releases-API
+    try {
+        const r = await githubGet(`/repos/${GITHUB_REPO}/releases/latest`);
+        if (r.status === 200 && r.body.tag_name) {
+            return r.body.tag_name.replace(/^v/, '');
+        }
+    } catch(_) { /* weiter zum Fallback */ }
+
+    // 2. Fallback: Tags-API (wenn noch keine Releases existieren)
+    try {
+        const r = await githubGet(`/repos/${GITHUB_REPO}/tags`);
+        if (r.status === 200 && Array.isArray(r.body) && r.body.length > 0) {
+            return r.body[0].name.replace(/^v/, '');
+        }
+    } catch(_) { /* weiter */ }
+
+    return null; // kein Release und kein Tag → null statt '0.0.0'
 }
 
 function compareVersions(a, b) {
@@ -494,8 +511,8 @@ function compareVersions(a, b) {
 
 async function serveVersion(res) {
     try {
-        const latest        = await fetchGitHubVersion();
-        const updateAvail   = compareVersions(latest, CURRENT_VERSION) > 0;
+        const latest      = await fetchGitHubVersion();
+        const updateAvail = latest ? compareVersions(latest, CURRENT_VERSION) > 0 : false;
         sendJson(res, 200, { current: CURRENT_VERSION, latest, updateAvailable: updateAvail });
     } catch(e) {
         sendJson(res, 200, { current: CURRENT_VERSION, latest: null, updateAvailable: false, error: e.message });
@@ -1275,10 +1292,13 @@ async function checkVersion() {
   try {
     const d = await fetch('/api/version').then(r => r.json());
     document.getElementById('sv-cur').textContent = d.current || '\u2013';
-    document.getElementById('sv-lat').textContent = d.latest  || (d.error ? '(Fehler)' : '\u2013');
+    document.getElementById('sv-lat').textContent = d.latest  || (d.error ? '(Fehler)' : 'Noch kein Release');
     const st = document.getElementById('sv-status');
     if (d.error) {
       st.innerHTML = '<span class="badge-err">\u26A0 GitHub nicht erreichbar</span>';
+      updBtn.style.display = 'none';
+    } else if (!d.latest) {
+      st.innerHTML = '<span class="badge-warn">\u2139 Kein GitHub-Release vorhanden</span>';
       updBtn.style.display = 'none';
     } else if (d.updateAvailable) {
       st.innerHTML = '<span class="badge-new">\uD83C\uDD95 Update verf\u00FCgbar</span>';
