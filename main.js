@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.5.0';
+const CURRENT_VERSION = '0.6.0';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -96,6 +96,8 @@ adapter.on('unload', (callback) => {
 
 // ─── State-Change-Handler (ESP32 Heartbeats via simple-api) ──────────────────
 adapter.on('stateChange', async (id, state) => {
+    // Eigene Writes (ack: true) ignorieren – nur externe Änderungen verarbeiten
+    if (!state || state.ack) return;
     if (!state || state.val === null) return;
     const ns       = `${adapter.namespace}.`;
     const relative = id.startsWith(ns) ? id.slice(ns.length) : id;
@@ -243,6 +245,21 @@ function startHttpServer() {
         if (req.method === 'GET'  && url === '/api/nodes')   { serveNodesJson(res);      return; }
         if (req.method === 'GET'  && url === '/api/discover'){ serveDiscoverJson(res);   return; }
         if (req.method === 'POST' && url === '/api/update')  { handleUpdate(req, res);   return; }
+
+        // ESP32 Node-Registrierung (kein Auth – ESP32 kennt keine Zugangsdaten)
+        if (req.method === 'POST' && url === '/api/register') {
+            readBody(req, b => handleNodeRegister(b, res, clientIp)); return;
+        }
+        // ESP32 Config-Poll (kein Auth)
+        const configPollMatch = url.match(/^\/api\/nodes\/([A-Fa-f0-9]+)\/config$/);
+        if (req.method === 'GET' && configPollMatch) {
+            handleNodeConfigPoll(configPollMatch[1].toUpperCase(), res); return;
+        }
+        // ESP32 ConfigAck (kein Auth)
+        const ackMatch = url.match(/^\/api\/nodes\/([A-Fa-f0-9]+)\/configAck$/);
+        if (req.method === 'POST' && ackMatch) {
+            readBody(req, b => handleNodeAck(ackMatch[1].toUpperCase(), b, res)); return;
+        }
 
         // Favicon ohne Auth durchlassen (Browser ruft das automatisch ab)
         if (url === '/favicon.ico') { res.writeHead(204); res.end(); return; }
@@ -624,6 +641,81 @@ async function handleNodeConfig(mac, body, res, clientIp) {
         log(LVL.ERROR, CAT.NODE, `Config-Fehler`, `${mac}: ${e.message}`);
         sendJson(res, 500, { error: e.message });
     }
+}
+
+// ─── Node-Registrierung via HTTP (POST /api/register) ────────────────────────
+// ESP32 sendet: { mac, ip, name, version, configAck? }
+// Adapter legt States an, aktualisiert Cache, antwortet mit aktuellem Config-JSON
+async function handleNodeRegister(body, res, clientIp) {
+    let data;
+    try { data = JSON.parse(body); } catch {
+        sendJson(res, 400, { error: 'Ungültiges JSON' }); return;
+    }
+    const mac     = (data.mac     || '').replace(/[^A-Fa-f0-9]/g, '').toUpperCase();
+    const ip      = (data.ip      || clientIp || '').trim();
+    const name    = (data.name    || 'ESP32 Node').trim();
+    const version = (data.version || '').trim();
+    const ack     = data.configAck ? String(data.configAck) : null;
+
+    if (!mac) { sendJson(res, 400, { error: 'Feld mac fehlt' }); return; }
+
+    const ts = Date.now();
+    if (!nodesCache[mac]) nodesCache[mac] = { mac };
+    nodesCache[mac].ip       = ip;
+    nodesCache[mac].name     = name;
+    nodesCache[mac].version  = version;
+    nodesCache[mac].lastSeen = ts;
+    if (ack) nodesCache[mac].configAck = ack;
+
+    try {
+        await ensureNodeStates(mac);
+        await adapter.setStateAsync(`nodes.${mac}.ip`,       { val: ip,      ack: true });
+        await adapter.setStateAsync(`nodes.${mac}.name`,     { val: name,    ack: true });
+        await adapter.setStateAsync(`nodes.${mac}.version`,  { val: version, ack: true });
+        await adapter.setStateAsync(`nodes.${mac}.lastSeen`, { val: ts,      ack: true });
+        if (ack) await adapter.setStateAsync(`nodes.${mac}.configAck`, { val: ack, ack: true });
+
+        log(LVL.INFO, CAT.NODE, `Heartbeat`, `${mac} | IP: ${ip} | v${version} | ${name}`);
+
+        // Aktuelle Config zurückgeben (null wenn noch keine gesetzt)
+        const config = nodesCache[mac].config || null;
+        sendJson(res, 200, { ok: true, mac, config });
+    } catch (e) {
+        log(LVL.ERROR, CAT.NODE, `Register-Fehler`, `${mac}: ${e.message}`);
+        sendJson(res, 500, { error: e.message });
+    }
+}
+
+// ─── Node ConfigAck (POST /api/nodes/{MAC}/configAck) ────────────────────────
+// ESP32 meldet zurück dass Config übernommen wurde
+async function handleNodeAck(mac, body, res) {
+    let data = {};
+    try { data = JSON.parse(body); } catch { /* ack-String ist optional */ }
+    const ack = data.ack || String(Date.now());
+
+    if (!nodesCache[mac]) nodesCache[mac] = { mac };
+    nodesCache[mac].configAck = ack;
+
+    try {
+        await ensureNodeStates(mac);
+        await adapter.setStateAsync(`nodes.${mac}.configAck`, { val: ack, ack: true });
+        log(LVL.INFO, CAT.NODE, `Config quittiert`, `${mac} | ack: ${ack}`);
+        sendJson(res, 200, { ok: true });
+    } catch (e) {
+        sendJson(res, 500, { error: e.message });
+    }
+}
+
+// ─── Node Config-Poll (GET /api/nodes/{MAC}/config) ───────────────────────────
+// ESP32 fragt alle 15s aktuelle Config ab
+function handleNodeConfigPoll(mac, res) {
+    const node = nodesCache[mac];
+    if (!node) {
+        // Node noch nicht registriert – leere Antwort
+        sendJson(res, 200, { ok: true, config: null });
+        return;
+    }
+    sendJson(res, 200, { ok: true, mac, config: node.config || null });
 }
 
 // ─── Web-Oberfläche ───────────────────────────────────────────────────────────
