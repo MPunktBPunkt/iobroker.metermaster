@@ -6,9 +6,12 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.4.0';
+const CURRENT_VERSION = '0.5.0';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
+
+// Node gilt als online wenn lastSeen < NODE_ONLINE_SEC Sekunden
+const NODE_ONLINE_SEC = 120;
 
 const adapter = new utils.Adapter('metermaster');
 
@@ -17,8 +20,11 @@ let readingsReceived = 0;
 
 // ─── In-Memory Datencache ─────────────────────────────────────────────────────
 // Struktur: receivedData[house][apartment][meter] = { latest, latestDate, unit, typeName, history[] }
-// Wird bei jedem storeReading() befüllt und für /api/data ausgeliefert.
 const receivedData = {};
+
+// ─── ESP32 Node-Cache ─────────────────────────────────────────────────────────
+// Struktur: nodesCache[mac] = { mac, ip, name, version, lastSeen, config, configAck }
+const nodesCache = {};
 
 function cacheReading(house, apt, meter, value, unit, typeName, readingDate, ts) {
     if (!receivedData[house])               receivedData[house] = {};
@@ -43,7 +49,7 @@ const logBuffer = [];
 let   logBufferMaxSize = 500;
 
 const LVL = { DEBUG: 'debug', INFO: 'info', WARN: 'warn', ERROR: 'error' };
-const CAT = { SYSTEM: 'SYSTEM', AUTH: 'AUTH', CONNECT: 'CONNECT', DATAPOINT: 'DATAPOINT', SYNC: 'SYNC', HISTORY: 'HISTORY', IMPORT: 'IMPORT' };
+const CAT = { SYSTEM: 'SYSTEM', AUTH: 'AUTH', CONNECT: 'CONNECT', DATAPOINT: 'DATAPOINT', SYNC: 'SYNC', HISTORY: 'HISTORY', IMPORT: 'IMPORT', NODE: 'NODE' };
 
 function log(level, category, message, detail) {
     const fullMsg = detail ? `[${category}] ${message} — ${detail}` : `[${category}] ${message}`;
@@ -74,6 +80,10 @@ adapter.on('ready', async () => {
 
     // In-Memory-Cache aus gespeicherten ioBroker-States wiederherstellen
     await restoreCacheFromStates();
+    await restoreNodesFromStates();
+
+    // ESP32-Node-States beobachten (Heartbeat-Erkennung via simple-api)
+    adapter.subscribeStates('nodes.*');
 
     startHttpServer();
 });
@@ -82,6 +92,33 @@ adapter.on('unload', (callback) => {
     log(LVL.INFO, CAT.SYSTEM, 'Adapter wird gestoppt');
     try { if (server) { server.close(() => callback()); } else { callback(); } }
     catch (e) { callback(); }
+});
+
+// ─── State-Change-Handler (ESP32 Heartbeats via simple-api) ──────────────────
+adapter.on('stateChange', async (id, state) => {
+    if (!state || state.val === null) return;
+    const ns       = `${adapter.namespace}.`;
+    const relative = id.startsWith(ns) ? id.slice(ns.length) : id;
+    const parts    = relative.split('.');
+    if (parts.length < 3 || parts[0] !== 'nodes') return;
+
+    const mac   = parts[1];
+    const field = parts.slice(2).join('.');
+
+    if (!nodesCache[mac]) nodesCache[mac] = { mac };
+
+    if (field === 'ip')        nodesCache[mac].ip        = String(state.val);
+    if (field === 'name')      nodesCache[mac].name      = String(state.val);
+    if (field === 'version')   nodesCache[mac].version   = String(state.val);
+    if (field === 'lastSeen')  nodesCache[mac].lastSeen  = Number(state.val);
+    if (field === 'configAck') nodesCache[mac].configAck = String(state.val);
+    if (field === 'config')    nodesCache[mac].config    = String(state.val);
+
+    if (field === 'lastSeen') {
+        const n = nodesCache[mac];
+        log(LVL.INFO, CAT.NODE, `Heartbeat`, `${mac} | IP: ${n.ip || '?'} | v${n.version || '?'} | ${n.name || 'unbenannt'}`);
+        await ensureNodeStates(mac);
+    }
 });
 
 // ─── Cache-Wiederherstellung beim Start ───────────────────────────────────────
@@ -137,6 +174,49 @@ async function restoreCacheFromStates() {
     }
 }
 
+// ─── ESP32 Node-Wiederherstellung beim Start ──────────────────────────────────
+async function restoreNodesFromStates() {
+    try {
+        const allStates = await adapter.getStatesAsync('nodes.*');
+        if (!allStates) return;
+        const ns    = `${adapter.namespace}.`;
+        let   count = 0;
+
+        for (const [key, state] of Object.entries(allStates)) {
+            if (!state || state.val === null) continue;
+            const relative = key.startsWith(ns) ? key.slice(ns.length) : key;
+            const parts    = relative.split('.');
+            if (parts.length < 3 || parts[0] !== 'nodes') continue;
+            const mac   = parts[1];
+            const field = parts.slice(2).join('.');
+            if (!nodesCache[mac]) { nodesCache[mac] = { mac }; count++; }
+            if (field === 'ip')        nodesCache[mac].ip        = String(state.val);
+            if (field === 'name')      nodesCache[mac].name      = String(state.val);
+            if (field === 'version')   nodesCache[mac].version   = String(state.val);
+            if (field === 'lastSeen')  nodesCache[mac].lastSeen  = Number(state.val);
+            if (field === 'configAck') nodesCache[mac].configAck = String(state.val);
+            if (field === 'config')    nodesCache[mac].config    = String(state.val);
+        }
+        if (count > 0) log(LVL.INFO, CAT.NODE, `Nodes wiederhergestellt`, `${count} ESP32-Node(s) aus States geladen`);
+        else           log(LVL.DEBUG, CAT.NODE, 'Keine registrierten Nodes gefunden');
+    } catch (e) {
+        log(LVL.WARN, CAT.NODE, 'Node-Wiederherstellung fehlgeschlagen', e.message);
+    }
+}
+
+// ─── ESP32 Node States anlegen ────────────────────────────────────────────────
+async function ensureNodeStates(mac) {
+    const base = `nodes.${mac}`;
+    await ensureChannel('nodes',      'ESP32 Nodes');
+    await ensureChannel(base,         `ESP32 Node ${mac}`);
+    await ensureState(`${base}.ip`,        { name: 'IP-Adresse',           type: 'string', role: 'info.ip',      read: true, write: false });
+    await ensureState(`${base}.name`,      { name: 'Gerätename',           type: 'string', role: 'info.name',    read: true, write: false });
+    await ensureState(`${base}.version`,   { name: 'Firmware-Version',     type: 'string', role: 'info.version', read: true, write: false });
+    await ensureState(`${base}.lastSeen`,  { name: 'Zuletzt gesehen (ms)', type: 'number', role: 'value.time',   read: true, write: false });
+    await ensureState(`${base}.config`,    { name: 'Konfiguration (JSON)', type: 'string', role: 'value',        read: true, write: true  });
+    await ensureState(`${base}.configAck`, { name: 'Config-Quittierung',   type: 'string', role: 'value',        read: true, write: false });
+}
+
 // ─── HTTP-Server ──────────────────────────────────────────────────────────────
 function startHttpServer() {
     const port     = parseInt(adapter.config.port)     || 8089;
@@ -153,13 +233,15 @@ function startHttpServer() {
         const clientIp = req.socket.remoteAddress || '?';
 
         // Web-UI und read-only API ohne Auth
-        if (req.method === 'GET' && (url === '/' || url === '/logs' || url === '/data' || url === '/import')) {
+        if (req.method === 'GET' && (url === '/' || url === '/logs' || url === '/data' || url === '/import' || url === '/nodes')) {
             serveWebApp(res, port); return;
         }
-        if (req.method === 'GET'  && url === '/api/logs')  { serveLogsJson(req, res);  return; }
-        if (req.method === 'GET'  && url === '/api/stats') { serveStats(res);           return; }
+        if (req.method === 'GET'  && url === '/api/logs')    { serveLogsJson(req, res);  return; }
+        if (req.method === 'GET'  && url === '/api/stats')   { serveStats(res);           return; }
         if (req.method === 'GET'  && url === '/api/data')    { serveDataJson(res);        return; }
         if (req.method === 'GET'  && url === '/api/version') { serveVersion(res);        return; }
+        if (req.method === 'GET'  && url === '/api/nodes')   { serveNodesJson(res);      return; }
+        if (req.method === 'GET'  && url === '/api/discover'){ serveDiscoverJson(res);   return; }
         if (req.method === 'POST' && url === '/api/update')  { handleUpdate(req, res);   return; }
 
         // Favicon ohne Auth durchlassen (Browser ruft das automatisch ab)
@@ -199,8 +281,14 @@ function startHttpServer() {
         else if (req.method === 'POST' && url === '/api/readings') { readBody(req, b => handleReadings(b, res, clientIp)); }
         else if (req.method === 'POST' && url === '/api/import')   { readBody(req, b => handleImport(b, res, clientIp)); }
         else {
-            log(LVL.WARN, CAT.CONNECT, `Unbekannte URL`, `${req.method} ${url} von ${clientIp}`);
-            res.writeHead(404); res.end(JSON.stringify({ error: 'Nicht gefunden' }));
+            // Node-Config: POST /api/nodes/{MAC}/config
+            const nodeMatch = url.match(/^\/api\/nodes\/([A-Fa-f0-9]+)\/config$/);
+            if (req.method === 'POST' && nodeMatch) {
+                readBody(req, b => handleNodeConfig(nodeMatch[1].toUpperCase(), b, res, clientIp));
+            } else {
+                log(LVL.WARN, CAT.CONNECT, `Unbekannte URL`, `${req.method} ${url} von ${clientIp}`);
+                res.writeHead(404); res.end(JSON.stringify({ error: 'Nicht gefunden' }));
+            }
         }
     });
 
@@ -453,13 +541,91 @@ function serveLogsJson(req, res) {
     });
 }
 function serveStats(res) {
+    const nodeCount   = Object.keys(nodesCache).length;
+    const onlineCount = Object.values(nodesCache).filter(n =>
+        n.lastSeen && (Date.now() - n.lastSeen) < NODE_ONLINE_SEC * 1000
+    ).length;
     sendJson(res, 200, {
         adapter: 'metermaster', version: CURRENT_VERSION,
-        readingsReceived, logEntries: logBuffer.length, uptime: process.uptime()
+        readingsReceived, logEntries: logBuffer.length, uptime: process.uptime(),
+        nodeCount, onlineCount
     });
 }
 
-// ─── Web-Oberfläche ───────────────────────────────────────────────────────────
+// ─── Nodes API ────────────────────────────────────────────────────────────────
+function serveNodesJson(res) {
+    const now   = Date.now();
+    const nodes = Object.values(nodesCache).map(n => ({
+        mac:       n.mac,
+        name:      n.name      || '',
+        ip:        n.ip        || '',
+        version:   n.version   || '',
+        lastSeen:  n.lastSeen  || 0,
+        online:    n.lastSeen  ? (now - n.lastSeen) < NODE_ONLINE_SEC * 1000 : false,
+        config:    n.config    || '',
+        configAck: n.configAck || '',
+    }));
+    nodes.sort((a, b) => b.lastSeen - a.lastSeen);
+    sendJson(res, 200, nodes);
+}
+
+// ─── Discover: alle bekannten Zähler-State-IDs ───────────────────────────────
+function serveDiscoverJson(res) {
+    const result = [];
+    const ns     = adapter.namespace;
+    for (const [house, apts] of Object.entries(receivedData)) {
+        for (const [apt, meters] of Object.entries(apts)) {
+            for (const [meter, data] of Object.entries(meters)) {
+                result.push({
+                    stateId:   `${ns}.${house}.${apt}.${meter}.readings.latest`,
+                    label:     meter,
+                    unit:      data.unit     || '',
+                    typeName:  data.typeName || '',
+                    house, apartment: apt, meter,
+                    latest:    data.latest,
+                });
+            }
+        }
+    }
+    result.sort((a, b) =>
+        `${a.house}/${a.apartment}/${a.meter}`.localeCompare(`${b.house}/${b.apartment}/${b.meter}`)
+    );
+    sendJson(res, 200, result);
+}
+
+// ─── Node Config schreiben ────────────────────────────────────────────────────
+async function handleNodeConfig(mac, body, res, clientIp) {
+    let data;
+    try { data = JSON.parse(body); } catch {
+        sendJson(res, 400, { error: 'Ungültiges JSON' }); return;
+    }
+    const sid   = (data.sid   || '').trim();
+    const label = (data.label || '').trim();
+    const unit  = (data.unit  || '').trim();
+
+    const config = {
+        sid,
+        label,
+        unit,
+        carouselActive: data.carouselActive || false,
+        carouselSec:    data.carouselSec    || 10,
+        carousel:       data.carousel       || [],
+    };
+    const configStr = JSON.stringify(config);
+
+    try {
+        await ensureNodeStates(mac);
+        await adapter.setStateAsync(`nodes.${mac}.config`, { val: configStr, ack: true });
+        if (!nodesCache[mac]) nodesCache[mac] = { mac };
+        nodesCache[mac].config = configStr;
+        log(LVL.INFO, CAT.NODE, `Config gesetzt`, `${mac} \u2192 ${sid || '(leer)'} | IP: ${nodesCache[mac]?.ip || '?'}`);
+        sendJson(res, 200, { ok: true, mac, config });
+    } catch (e) {
+        log(LVL.ERROR, CAT.NODE, `Config-Fehler`, `${mac}: ${e.message}`);
+        sendJson(res, 500, { error: e.message });
+    }
+}
+
 // ─── Web-Oberfläche ───────────────────────────────────────────────────────────
 // ─── Versions-Check (GitHub) ──────────────────────────────────────────────────
 function githubGet(path) {
@@ -913,7 +1079,7 @@ input.search {
   </div>
   <div class="hstats">
     <div class="hstat">Ablesungen: <b id="st-rx">–</b></div>
-    <div class="hstat">Logs: <b id="st-lg">–</b></div>
+    <div class="hstat">Nodes: <b id="st-nodes">–</b></div>
     <div class="hstat">Uptime: <b id="st-up">–</b></div>
     <div class="live-dot" id="st-live">● Live</div>
   </div>
@@ -922,6 +1088,7 @@ input.search {
 <!-- ══ NAV ═══════════════════════════════════════════════════════════════════ -->
 <nav>
   <button class="tab active" id="tab-data"   data-tab="data"   onclick="showTab('data')"  >📊 Daten</button>
+  <button class="tab"        id="tab-nodes"  data-tab="nodes"  onclick="showTab('nodes')" >📡 Nodes</button>
   <button class="tab"        id="tab-import" data-tab="import" onclick="showTab('import')">📥 Import</button>
   <button class="tab"        id="tab-logs"   data-tab="logs"   onclick="showTab('logs')"  >📋 Logs</button>
   <button class="tab"        id="tab-system" data-tab="system" onclick="showTab('system')">⚙️ System</button>
@@ -933,6 +1100,23 @@ input.search {
     <div class="empty-state">
       <div class="ico">📡</div>
       <p>Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App oder lade ein Backup hoch.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NODES ═════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-nodes">
+  <div id="nodes-page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <h2 style="font-size:1em;color:var(--secondary);margin-bottom:2px;">📡 Registrierte ESP32 Nodes</h2>
+      <div style="font-size:.82em;color:var(--text-dim);">Gesamt: <b id="nd-total" style="color:var(--text);">0</b> &nbsp;|&nbsp; Online: <b id="nd-online" style="color:var(--accent);">0</b></div>
+    </div>
+    <button class="ghost" onclick="fetchNodes()">↻ Aktualisieren</button>
+  </div>
+  <div id="nodes-container">
+    <div class="empty-state">
+      <div class="ico">📡</div>
+      <p>Noch keine ESP32 Nodes registriert.<br>Wenn ein MeterMaster Node startet und seinen Heartbeat sendet, erscheint er hier automatisch.</p>
     </div>
   </div>
 </div>
@@ -992,6 +1176,7 @@ input.search {
       <option value="SYNC">SYNC</option>
       <option value="HISTORY">HISTORY</option>
       <option value="IMPORT">IMPORT</option>
+      <option value="NODE">NODE</option>
     </select>
     <input class="search" type="text" id="ft" placeholder="Suche…">
     <button class="ghost" onclick="clearLogs()">🗑 Leeren</button>
@@ -1005,6 +1190,28 @@ input.search {
 
 <!-- ══ SYSTEM ════════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-system">
+
+  <div class="sys-card">
+    <h3>📊 Statistiken</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="background:var(--bg-deep);border:1px solid var(--border);border-radius:9px;padding:12px 14px;">
+        <div style="font-size:1.6em;font-weight:700;color:var(--secondary);" id="sys-rx">–</div>
+        <div style="font-size:.78em;color:var(--text-dim);margin-top:3px;">Ablesungen gesamt</div>
+      </div>
+      <div style="background:var(--bg-deep);border:1px solid var(--border);border-radius:9px;padding:12px 14px;">
+        <div style="font-size:1.6em;font-weight:700;color:var(--secondary);" id="sys-up">–</div>
+        <div style="font-size:.78em;color:var(--text-dim);margin-top:3px;">Uptime</div>
+      </div>
+      <div style="background:var(--bg-deep);border:1px solid var(--border);border-radius:9px;padding:12px 14px;">
+        <div style="font-size:1.6em;font-weight:700;color:var(--accent);" id="sys-online">–</div>
+        <div style="font-size:.78em;color:var(--text-dim);margin-top:3px;">Nodes online</div>
+      </div>
+      <div style="background:var(--bg-deep);border:1px solid var(--border);border-radius:9px;padding:12px 14px;">
+        <div style="font-size:1.6em;font-weight:700;color:var(--secondary);" id="sys-total">–</div>
+        <div style="font-size:.78em;color:var(--text-dim);margin-top:3px;">Nodes gesamt</div>
+      </div>
+    </div>
+  </div>
 
   <div class="sys-card">
     <h3>🔄 Adapter-Version</h3>
@@ -1065,11 +1272,11 @@ window.showTab = function showTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('page-'+name).classList.add('active');
   if (name === 'data')   fetchData();
+  if (name === 'nodes')  fetchNodes();
   if (name === 'logs')   fetchLogs();
-  if (name === 'system') checkVersion();
+  if (name === 'system') { checkVersion(); fetchSysStats(); }
 }
 
-// \u2500\u2500 Hilfsfunktionen \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmtDt  = ts => new Date(ts).toLocaleString('de-DE',{hour12:false});
 const fmtUp  = s  => Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m '+Math.floor(s%60)+'s';
@@ -1077,20 +1284,38 @@ const fmtLog = ts => {
   const d = new Date(ts);
   return d.toLocaleTimeString('de-DE',{hour12:false})+'.'+String(d.getMilliseconds()).padStart(3,'0');
 };
+const fmtAgo = ts => {
+  if (!ts) return '\u2013';
+  const s = Math.floor((Date.now()-ts)/1000);
+  if (s < 5)    return 'gerade eben';
+  if (s < 60)   return 'vor '+s+'s';
+  if (s < 3600) return 'vor '+Math.floor(s/60)+'min';
+  return new Date(ts).toLocaleString('de-DE',{hour12:false});
+};
 
 // \u2500\u2500 Stats \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 async function fetchStats() {
   try {
     const d = await fetch('/api/stats').then(r => r.json());
-    document.getElementById('st-rx').textContent = d.readingsReceived;
-    document.getElementById('st-lg').textContent = d.logEntries;
-    document.getElementById('st-up').textContent = fmtUp(d.uptime);
-    document.getElementById('st-live').textContent = '\u25CF Live';
-    document.getElementById('st-live').style.color = 'var(--accent)';
+    document.getElementById('st-rx').textContent    = d.readingsReceived;
+    document.getElementById('st-nodes').textContent = d.onlineCount+'/'+d.nodeCount;
+    document.getElementById('st-up').textContent    = fmtUp(d.uptime);
+    document.getElementById('st-live').textContent  = '\u25CF Live';
+    document.getElementById('st-live').style.color  = 'var(--accent)';
   } catch {
     document.getElementById('st-live').textContent = '\u2717 Getrennt';
     document.getElementById('st-live').style.color = 'var(--danger)';
   }
+}
+
+async function fetchSysStats() {
+  try {
+    const d = await fetch('/api/stats').then(r => r.json());
+    const sRx = document.getElementById('sys-rx');     if (sRx) sRx.textContent     = d.readingsReceived;
+    const sUp = document.getElementById('sys-up');     if (sUp) sUp.textContent     = fmtUp(d.uptime);
+    const sOn = document.getElementById('sys-online'); if (sOn) sOn.textContent = d.onlineCount;
+    const sTt = document.getElementById('sys-total');  if (sTt) sTt.textContent  = d.nodeCount;
+  } catch {}
 }
 
 // \u2500\u2500 DATEN-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -1145,6 +1370,91 @@ function toggleHist(id) {
   const el = document.getElementById(id);
   if (el) el.classList.toggle('open');
 }
+// \u2500\u2500 NODES-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+let discoverCache = [];
+
+async function fetchNodes() {
+  const con = document.getElementById('nodes-container');
+  try {
+    const [nodes, discover] = await Promise.all([
+      fetch('/api/nodes').then(r => r.json()),
+      fetch('/api/discover').then(r => r.json())
+    ]);
+    discoverCache = discover;
+    const total  = nodes.length;
+    const online = nodes.filter(n => n.online).length;
+    const elTot = document.getElementById('nd-total');  if (elTot) elTot.textContent  = total;
+    const elOn  = document.getElementById('nd-online'); if (elOn)  elOn.textContent   = online;
+    if (!total) {
+      con.innerHTML = '<div class="empty-state"><div class="ico">\uD83D\uDCE1</div><p>Noch keine ESP32 Nodes registriert.<br>Wenn ein MeterMaster Node startet, erscheint er automatisch hier.</p></div>';
+      return;
+    }
+    const buildOptions = (currentSid) => {
+      let opts = '<option value="">\u2014 Kein Z\u00E4hler zugewiesen \u2014</option>';
+      for (const m of discover) {
+        const lbl = m.house + ' \u203A ' + m.apartment + ' \u203A ' + m.meter + (m.latest !== undefined ? '  (' + m.latest + ' ' + esc(m.unit) + ')' : '');
+        opts += '<option value="'+esc(m.stateId)+'"'+(m.stateId===currentSid?' selected':'')+'>'+esc(lbl)+'</option>';
+      }
+      return opts;
+    };
+    let html = '<div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:.85em;">';
+    html += '<thead><tr style="text-align:left;">';
+    const th = (t) => '<th style="padding:10px 12px;color:var(--text-dim);font-size:.8em;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);background:var(--bg-surface);">'+t+'</th>';
+    html += th('Status')+th('Name')+th('IP-Adresse')+th('FW-Version')+th('Zuletzt gesehen')+th('Z\u00E4hler zuweisen');
+    html += '</tr></thead><tbody>';
+    for (const n of nodes) {
+      let currentSid = '';
+      try { currentSid = JSON.parse(n.config||'{}').sid || ''; } catch {}
+      const onBadge  = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:.8em;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(76,175,80,.15);color:#A5D6A7;border:1px solid rgba(76,175,80,.3);"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;box-shadow:0 0 4px var(--accent);"></span>Online</span>';
+      const offBadge = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:.8em;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(244,67,54,.12);color:#EF9A9A;border:1px solid rgba(244,67,54,.3);"><span style="width:7px;height:7px;border-radius:50%;background:var(--danger);display:inline-block;"></span>Offline</span>';
+      const badge    = n.online ? onBadge : offBadge;
+      const ackHint  = n.configAck ? '<div style="font-size:.75em;color:var(--text-muted);margin-top:3px;">\u2713 Ack</div>' : '';
+      const ipCell   = n.ip ? '<a href="http://'+esc(n.ip)+'" target="_blank" style="color:var(--primary);text-decoration:none;font-family:Consolas,monospace;font-size:.9em;">'+esc(n.ip)+'</a>' : '\u2013';
+      const td = (c, extra) => '<td style="padding:10px 12px;vertical-align:middle;'+(extra||'')+'">'+c+'</td>';
+      html += '<tr style="border-bottom:1px solid var(--border);">';
+      html += td(badge+'<br><span style="font-family:Consolas,monospace;font-size:.78em;color:var(--text-muted);">'+esc(n.mac)+'</span>');
+      html += td('<b>'+esc(n.name||'\u2013')+'</b>');
+      html += td(ipCell);
+      html += td('<span style="background:var(--bg-surface3);color:var(--secondary);font-family:Consolas,monospace;font-size:.82em;padding:2px 8px;border-radius:6px;">'+esc(n.version||'\u2013')+'</span>');
+      html += td(esc(fmtAgo(n.lastSeen)), 'color:var(--text-dim);font-size:.82em;');
+      html += td('<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select id="sel-'+esc(n.mac)+'" style="background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.82em;max-width:300px;min-width:180px;outline:none;">'+buildOptions(currentSid)+'</select><button onclick="saveNodeConfig(\''+esc(n.mac)+'\')" id="sbtn-'+esc(n.mac)+'" style="background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;">\uD83D\uDCBE Speichern</button><span id="smsg-'+esc(n.mac)+'"></span></div>'+ackHint);
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+    con.innerHTML = html;
+  } catch(e) {
+    con.innerHTML = '<div class="empty-state"><div class="ico">\u26A0</div><p>Fehler: '+esc(e.message)+'</p></div>';
+  }
+}
+
+async function saveNodeConfig(mac) {
+  const sel = document.getElementById('sel-'+mac);
+  const btn = document.getElementById('sbtn-'+mac);
+  const msg = document.getElementById('smsg-'+mac);
+  if (!sel || !btn || !msg) return;
+  const stateId = sel.value;
+  const meter   = discoverCache.find(m => m.stateId === stateId);
+  btn.disabled = true; msg.textContent = '';
+  try {
+    const r = await fetch('/api/nodes/'+encodeURIComponent(mac)+'/config', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ sid: stateId, label: meter ? meter.label : '', unit: meter ? meter.unit : '' })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      msg.innerHTML = '<span style="color:var(--accent);font-size:.82em;">\u2713 Gespeichert</span>';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    } else {
+      msg.innerHTML = '<span style="color:var(--danger);font-size:.82em;">\u2717 '+esc(d.error||'Fehler')+'</span>';
+    }
+  } catch(e) {
+    msg.innerHTML = '<span style="color:var(--danger);font-size:.82em;">\u2717 '+esc(e.message)+'</span>';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 
 // \u2500\u2500 IMPORT-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let importData = null;
@@ -1360,7 +1670,7 @@ function copyCmd(btn) {
 
 function initTabs() {
   // Tab-Buttons
-  ['data','import','logs','system'].forEach(name => {
+  ['data','nodes','import','logs','system'].forEach(name => {
     const el = document.getElementById('tab-' + name);
     if (el) {
       el.addEventListener('click', () => showTab(name));

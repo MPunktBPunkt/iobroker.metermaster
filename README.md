@@ -2,11 +2,11 @@
 
 ![MeterMaster Banner](github-banner.svg)
 
-[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
-Empfängt Zählerablesungen von der **MeterMaster Android-App** und speichert sie als ioBroker-Datenpunkte mit korrekten Zeitstempeln und vollständiger Historie.
+Empfängt Zählerablesungen von der **MeterMaster Android-App** und speichert sie als ioBroker-Datenpunkte mit korrekten Zeitstempeln und vollständiger Historie. Verwaltet außerdem **MeterMaster ESP32 Display-Nodes** mit automatischer Erkennung und Zähler-Zuweisung.
 
 ---
 
@@ -17,8 +17,9 @@ Empfängt Zählerablesungen von der **MeterMaster Android-App** und speichert si
 - 🕐 **Korrekter Zeitstempel** – `ts` des States entspricht dem echten Ablesedatum
 - 📈 **Historie** – jeder Zähler hält einen vollständigen `readings.history`-Array
 - 🔐 **Basic Auth** – optionaler Benutzername/Passwort-Schutz
-- 🌐 **Web-UI** – eingebauter Browser-Viewer mit Daten-, Import- und Log-Tab
+- 🌐 **Web-UI** – eingebauter Browser-Viewer mit 5 Tabs (Daten, Nodes, Import, Logs, System)
 - 📥 **Import** – App-Backup (Schema 2.0) direkt über die Web-UI einspielen
+- 🖥️ **ESP32 Node-Verwaltung** – automatische Erkennung, Online-Status, Zähler-Zuweisung per Dropdown
 
 ---
 
@@ -146,8 +147,21 @@ http://192.168.178.113:8089/
 | Tab | Inhalt |
 |---|---|
 | 📊 Daten | Alle empfangenen Zähler, gegliedert nach Haus/Wohnung, mit aufklappbarem Verlauf |
+| 📡 Nodes | Registrierte ESP32 Nodes: Status, IP, FW-Version, Zähler-Zuweisung per Dropdown |
 | 📥 Import | App-Backup (JSON, Schema 2.0) einspielen – Drag & Drop |
 | 📋 Logs | Echtzeit-Log mit Filter nach Level/Kategorie, Auto-Scroll, Export |
+| ⚙️ System | Statistiken, GitHub-Versionscheck, Update, Konsolenbefehle |
+
+---
+
+## ESP32 Node-Verwaltung
+
+Der Adapter erkennt MeterMaster ESP32 Nodes (ab Firmware v1.5.0) automatisch. Nodes schreiben ihre States direkt via ioBroker **simple-api** (Port 8087) — der Adapter reagiert via -Handler und legt alle benötigten States unter  automatisch an.
+
+**Angelegte Node-States:**
+
+
+**Zähler zuweisen** über den Nodes-Tab der Web-UI → Dropdown → Speichern → ESP32 übernimmt beim nächsten Poll (alle 15 s).
 
 ---
 
@@ -218,6 +232,21 @@ iobroker restart metermaster
 ---
 
 ## Changelog
+
+### 0.5.0
+- **ESP32 Node-Verwaltung:** automatische Erkennung via stateChange-Handler (simple-api Port 8087)
+- **Nodes-Tab** in der Web-UI: Online-Status, IP-Link, FW-Version, Zähler-Dropdown, Speichern
+- Neue API-Endpunkte: GET /api/nodes, GET /api/discover, POST /api/nodes/{MAC}/config
+- nodes.*-States werden beim ersten Heartbeat automatisch angelegt (ensureNodeStates)
+- Node-Cache (nodesCache) mit Wiederherstellung beim Start aus ioBroker-States
+- System-Tab: Statistik-Dashboard mit 4 Kacheln (Ablesungen, Uptime, Nodes online, Nodes gesamt)
+- Log-Kategorie NODE für alle Node-bezogenen Ereignisse
+
+### 0.4.0
+- GitHub Release v0.4.0 live, Versionscheck funktioniert
+- /favicon.ico antwortet 204 ohne Auth (keine WARN-Logs mehr)
+- GitHub-Check: Releases-API mit Tags-API Fallback
+- System-Tab: Update-Befehle mit Copy-to-Clipboard
 
 ### 0.3.1 (2026-03-07)
 - **Bugfix:** Literal-Zeilenumbrüche in `'...'`-String-Literalen innerhalb des Node.js-Template-Literals → `SyntaxError: Unexpected string` auf Browser-Zeile 543

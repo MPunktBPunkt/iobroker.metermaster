@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "title": "MeterMaster",
     "titleLang": {
       "de": "MeterMaster",
@@ -84,6 +84,10 @@
       }
     },
     "news": {
+      "0.5.0": {
+        "en": "ESP32 Node management: Nodes tab in Web-UI with IP, firmware version and meter assignment; /api/nodes, /api/discover, /api/nodes/{mac}/config endpoints; auto state creation on heartbeat; System tab with statistics dashboard",
+        "de": "ESP32 Node-Verwaltung: Nodes-Tab in Web-UI mit IP, FW-Version und Zähler-Zuweisung; /api/nodes, /api/discover, /api/nodes/{mac}/config Endpunkte; automatisches State-Anlegen bei Heartbeat; System-Tab mit Statistik-Dashboard"
+      },
       "0.1.0": {
         "en": "Initial release – HTTP receiver with Web-UI, Log-Viewer, Data-Tab and App-Import",
         "de": "Erstveröffentlichung – HTTP-Empfänger mit Web-UI, Log-Viewer, Daten-Tab und App-Import"

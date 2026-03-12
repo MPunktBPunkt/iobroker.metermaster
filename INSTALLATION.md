@@ -1,25 +1,31 @@
 # MeterMaster ioBroker Adapter – Installation
 
 ## Voraussetzungen
-- ioBroker läuft auf deinem Server/Raspberry Pi
-- SSH-Zugang oder Zugang zur ioBroker-Konsole
+- ioBroker läuft auf deinem Server
+- SSH-Zugang oder ioBroker-Konsole
+- ioBroker simple-api läuft auf Port 8087 (für ESP32 Node-Verwaltung)
 
-## Installation (lokale Methode – kein Store nötig)
+---
 
-### 1. Dateien auf den ioBroker-Server kopieren
+## Installation von GitHub (empfohlen)
 
 ```bash
-# Ordner anlegen
-mkdir -p /opt/iobroker/node_modules/iobroker.metermaster
-
-# Alle Dateien in diesen Ordner kopieren:
-# - main.js
-# - io-package.json
-# - package.json
+cd /opt/iobroker
+iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster
+iobroker restart metermaster.0
 ```
 
-Am einfachsten per **USB-Stick**, **SCP** oder direkt per **WinSCP / FileZilla**:
-- Zielordner: `/opt/iobroker/node_modules/iobroker.metermaster/`
+---
+
+## Manuelle Installation (offline)
+
+### 1. Dateien kopieren
+
+```bash
+mkdir -p /opt/iobroker/node_modules/iobroker.metermaster
+# Zielordner: /opt/iobroker/node_modules/iobroker.metermaster/
+# Benötigte Dateien: main.js, io-package.json, package.json, admin/
+```
 
 ### 2. Abhängigkeiten installieren
 
@@ -28,114 +34,100 @@ cd /opt/iobroker/node_modules/iobroker.metermaster
 npm install
 ```
 
-### 3. Adapter in ioBroker registrieren
+### 3. Adapter registrieren und starten
 
 ```bash
 cd /opt/iobroker
 iobroker add metermaster
-```
-
-### 4. Instanz konfigurieren
-
-In ioBroker Admin → Adapter → MeterMaster (erscheint nach `iobroker add`):
-- **Port**: `8089` (oder anderer freier Port)
-- **Benutzername**: z. B. `metermaster`
-- **Passwort**: sicheres Passwort wählen
-- **Historie aufbewahren**: `0` = alle, oder z.B. `120` für 10 Jahre monatliche Ablesungen
-
-### 5. Adapter starten
-
-```bash
 iobroker start metermaster
 ```
 
-Im ioBroker-Log sollte erscheinen:
-```
-MeterMaster Adapter gestartet. Port: 8089
-HTTP-Server lauscht auf Port 8089
-```
+---
 
-### 6. Firewall (falls nötig)
+## Konfiguration
+
+In ioBroker Admin → Adapter → MeterMaster:
+
+| Einstellung | Standard | Beschreibung |
+|---|---|---|
+| Port | `8089` | HTTP-Server-Port |
+| Benutzername | `metermaster` | Basic-Auth Username |
+| Passwort | – | Basic-Auth Passwort |
+| Ausführliches Logging | ✅ | Debug-Einträge sichtbar |
+| Log-Puffer | `500` | Max. Log-Einträge |
+| Historie aufbewahren | `0` | 0 = unbegrenzt |
+
+### Firewall (falls nötig)
 
 ```bash
-# Port 8089 öffnen (nur im lokalen Netz nötig)
-sudo ufw allow 8089/tcp
+sudo ufw allow 8089/tcp   # Adapter Web-UI + App-Sync
+sudo ufw allow 8087/tcp   # simple-api (für ESP32 Nodes)
 ```
-
-### 7. MeterMaster App konfigurieren
-
-In der App → Einstellungen → ioBroker → **MeterMaster Adapter**:
-- **Host**: IP-Adresse deines ioBroker (z.B. `192.168.178.113`)
-- **Port**: `8089`
-- **Benutzer**: `metermaster`
-- **Passwort**: das oben gewählte Passwort
 
 ---
 
-## Angelegte Datenpunkte
+## MeterMaster App konfigurieren
 
-Nach dem ersten Sync erscheinen unter `metermaster.0`:
+Einstellungen → ioBroker → MeterMaster Adapter:
+
+| Feld | Wert |
+|---|---|
+| Host | IP-Adresse des ioBroker (z.B. `192.168.178.113`) |
+| Port | `8089` |
+| Benutzer | wie oben konfiguriert |
+| Passwort | wie oben konfiguriert |
+
+---
+
+## ESP32 Node-Verwaltung (ab Adapter v0.5.0)
+
+ESP32 Nodes (Firmware v1.5.0+) registrieren sich automatisch, sobald sie im gleichen Netzwerk laufen. Der Node schreibt seinen Heartbeat via ioBroker **simple-api** (Port 8087) — der Adapter erkennt dies automatisch und legt alle States an.
+
+**Voraussetzung:** ioBroker simple-api-Adapter muss auf Port 8087 laufen.
+
+**Angelegte States unter `metermaster.0.nodes.{MAC}`:**
+- `ip` – IP-Adresse des ESP32
+- `name` – Gerätename
+- `version` – Firmware-Version
+- `lastSeen` – letzter Heartbeat (ms)
+- `config` – Zähler-Konfiguration (Adapter schreibt, ESP32 liest)
+- `configAck` – Quittierung durch den ESP32
+
+**Zähler zuweisen:** Web-UI öffnen → Tab **📡 Nodes** → Dropdown → Speichern.  
+Der ESP32 übernimmt die neue Konfiguration beim nächsten Config-Poll (alle 15 Sekunden).
+
+---
+
+## Angelegte Datenpunkte (Ablesungen)
 
 ```
 metermaster.0
-  └── MeinHaus
-       └── Westerheim
-            └── Warmwasser
-                 ├── readings.latest       (Zahl, mit korrektem Zeitstempel)
-                 ├── readings.latestDate   (ISO-Datum der Ablesung)
-                 ├── readings.history      (JSON-Array aller Ablesungen)
-                 ├── name                  (Zählername)
-                 ├── unit                  (Einheit)
-                 └── typeName              (Zählertyp)
-```
+  info.connection        – Adapter verbunden
+  info.lastSync          – letzter Sync
+  info.readingsReceived  – Ablesungen gesamt
 
-**`readings.history` Format:**
-```json
-[
-  { "value": 125.3, "unit": "m³", "readingDate": "2024-01-15T10:00:00.000Z", "ts": 1705312800000 },
-  { "value": 128.7, "unit": "m³", "readingDate": "2024-02-12T09:30:00.000Z", "ts": 1707729000000 }
-]
-```
+  └── {Haus}
+       └── {Wohnung}
+            └── {Zähler}
+                 ├── readings.latest      (Zahl, ts = Ablesedatum)
+                 ├── readings.latestDate  (ISO-Datum)
+                 ├── readings.history     (JSON-Array)
+                 ├── name
+                 ├── unit
+                 └── typeName
 
----
-
-## HTTP API
-
-### Verbindungstest
-```
-GET http://192.168.178.113:8089/api/ping
-→ { "ok": true, "adapter": "metermaster", "version": "0.3.2" }
-```
-
-### Einzelne Ablesung
-```
-POST http://192.168.178.113:8089/api/reading
-Authorization: Basic base64(user:passwort)
-Content-Type: application/json
-
-{
-  "house":       "MeinHaus",
-  "apartment":   "Westerheim",
-  "meter":       "Warmwasser",
-  "value":       128.75,
-  "unit":        "m³",
-  "typeName":    "Warmwasser",
-  "readingDate": "2024-02-12T09:30:00.000Z"
-}
-```
-
-### Mehrere Ablesungen (Batch)
-```
-POST http://192.168.178.113:8089/api/readings
-Authorization: Basic base64(user:passwort)
-Content-Type: application/json
-
-[ { ... }, { ... }, { ... } ]
+  └── nodes
+       └── {MAC}
+            ├── ip / name / version / lastSeen / config / configAck
 ```
 
 ---
 
 ## Aktualisierung
 
-Wenn du neue Zähler in der App anlegst, werden die Datenpunkte beim ersten Sync
-**automatisch** in ioBroker angelegt – kein manuelles Eingreifen nötig.
+```bash
+iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster
+iobroker restart metermaster.0
+```
+
+Oder über die Web-UI: Tab **⚙️ System** → „Auf Updates prüfen" → „Update installieren".
