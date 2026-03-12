@@ -1263,10 +1263,10 @@ input.search {
 <div id="ni" onclick="scrollLogBottom()">↓ Neue Einträge</div>
 
 <script>
-const TYPE_ICONS = ${JSON.stringify(TYPE_ICONS)};
+const TYPE_ICONS = {Electricity:'\u26A1',Gas:'\uD83D\uDD25',Water:'\uD83D\uDCA7',HotWater:'\uD83C\uDF21',ColdWater:'\u2744',Heat:'\uD83C\uDFE0',Cooling:'\uD83E\uDDCA',Oil:'\uD83D\uDEE2',Other:'\uD83D\uDCDF'};
 
 // \u2500\u2500 Tab-Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-window.showTab = function showTab(name) {
+function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
@@ -1418,7 +1418,7 @@ async function fetchNodes() {
       html += td(ipCell);
       html += td('<span style="background:var(--bg-surface3);color:var(--secondary);font-family:Consolas,monospace;font-size:.82em;padding:2px 8px;border-radius:6px;">'+esc(n.version||'\u2013')+'</span>');
       html += td(esc(fmtAgo(n.lastSeen)), 'color:var(--text-dim);font-size:.82em;');
-      html += td('<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select id="sel-'+esc(n.mac)+'" style="background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.82em;max-width:300px;min-width:180px;outline:none;">'+buildOptions(currentSid)+'</select><button data-mac='"+esc(n.mac)+"' onclick="saveNodeConfig(this.dataset.mac)" id="sbtn-'+esc(n.mac)+'" style="background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;">\uD83D\uDCBE Speichern</button><span id="smsg-'+esc(n.mac)+'"></span></div>'+ackHint);
+      html += td('<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select id="sel-'+esc(n.mac)+'" style="background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.82em;max-width:300px;min-width:180px;outline:none;">'+buildOptions(currentSid)+'</select><button  id="sbtn-'+esc(n.mac)+'" style="background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;">\uD83D\uDCBE Speichern</button><span id="smsg-'+esc(n.mac)+'"></span></div>'+ackHint);
       html += '</tr>';
     }
     html += '</tbody></table></div>';
@@ -1696,6 +1696,12 @@ function initTabs() {
   document.addEventListener('click', e => {
     const btn = e.target.closest('.mc-hist-toggle');
     if (btn && btn.dataset.hist) toggleHist(btn.dataset.hist);
+  });
+
+  // Nodes-Speichern via Event Delegation (kein onclick-Attribut mit Escaping-Problemen)
+  document.addEventListener('click', e => {
+    const btn2 = e.target.closest('[id^="sbtn-"]');
+    if (btn2) saveNodeConfig(btn2.id.slice(5));
   });
 
   // Dropzone
