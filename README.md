@@ -2,7 +2,7 @@
 
 [![MeterMaster Banner](https://github.com/MPunktBPunkt/iobroker.metermaster/raw/main/github-banner.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 
-[![Version](https://img.shields.io/badge/version-0.7.5-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![Version](https://img.shields.io/badge/version-0.7.6-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
@@ -211,16 +211,64 @@ Content-Type: application/json
 `http://IP:8089/` → Tab **⚙️ System** → „Auf Updates prüfen" → „Update installieren"
 
 ### Kommandozeile
+
 ```bash
-iobroker upgrade metermaster https://github.com/MPunktBPunkt/iobroker.metermaster
-iobroker restart metermaster
+iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster
+iobroker restart metermaster.0
+```
+
+**Beispiel-Output (Ubuntu LXC):**
+
+```
+root@IoBroker:~# iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster
+install MPunktBPunkt/iobroker.metermaster#<commit-hash>
+NPM version: 11.x.x
+Installing MPunktBPunkt/iobroker.metermaster... (System call)
+changed 1 package in 11s
+upload [1] metermaster.admin .../admin/jsonConfig.json
+upload [0] metermaster.admin .../admin/metermaster.svg
+Updating objects from io-package.json for adapter "metermaster" with version "0.7.6"
+Update "system.adapter.metermaster.0"
+
+root@IoBroker:~# iobroker restart metermaster.0
+The adapter "metermaster.0" was started.
+
+root@IoBroker:~# cat /opt/iobroker/node_modules/iobroker.metermaster/package.json | grep '"version"'
+  "version": "0.7.6",
+```
+
+> **Hinweis:** Die Meldung `[DEP0169] DeprecationWarning: url.parse()` ist harmlos und kommt vom ioBroker-CLI selbst, nicht vom Adapter.
+
+### Version prüfen nach Update
+
+```bash
+sed -n '9p' /opt/iobroker/node_modules/iobroker.metermaster/main.js
+# Erwartet: const CURRENT_VERSION = '0.7.6';
 ```
 
 ---
 
 ## Changelog
 
-### 0.7.3 (2026-03-13)
+### 0.7.6 (2026-03-13)
+- Login-Modal in der Web-UI – kein Browser-`prompt()` mehr für Auth
+- `authFetch()`-Wrapper für alle schreibenden Aktionen (401 → Modal)
+- Log-Tab: neueste Einträge werden oben angezeigt
+
+### 0.7.5 (2026-03-13)
+- LED-Buttons auf data-Attribute + Event Delegation umgebaut (kein `onclick`-Attribut mehr)
+- Behebt Browser-SyntaxError durch falsch escapte onclick-Strings
+
+### 0.7.0–0.7.4 (2026-03-13)
+- Bugfix-Serie: Emoji Surrogate-Pairs in `<script>`-Kontext (\uXXXX\uXXXX statt rohen Emojis)
+- `window`-Scope für alle onclick-Funktionen
+- TYPE_ICONS in Node.js-Scope korrekt mit Surrogate-Pairs
+- ESP32 cmd-Verarbeitung: LED und Zähler per Adapter fernsteuern
+- `POST /api/nodes/{MAC}/cmd` mit Basic Auth
+- `nodes.{MAC}.cmd` State – einmalige Auslieferung, danach automatisch gelöscht
+- LED-Buttons im Nodes-Tab der Web-UI
+
+### 0.7.0 (2026-03-13)
 - ESP32 cmd-Verarbeitung: LED und Zähler per Adapter fernsteuern
 - `POST /api/nodes/{MAC}/cmd` Endpunkt mit Basic Auth
 - `nodes.{MAC}.cmd` State – einmalige Auslieferung, danach automatisch gelöscht
