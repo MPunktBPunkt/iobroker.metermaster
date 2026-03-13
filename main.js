@@ -1395,7 +1395,7 @@ input.search {
 const TYPE_ICONS = {Electricity:'\u26A1',Gas:'\uD83D\uDD25',Water:'\uD83D\uDCA7',HotWater:'\uD83C\uDF21',ColdWater:'\u2744',Heat:'\uD83C\uDFE0',Cooling:'\uD83E\uDDCA',Oil:'\uD83D\uDEE2',Other:'\uD83D\uDCDF'};
 
 // \u2500\u2500 Tab-Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function showTab(name) {
+window.showTab = function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
@@ -1502,7 +1502,7 @@ function toggleHist(id) {
 // \u2500\u2500 NODES-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let discoverCache = [];
 
-async function fetchNodes() {
+window.fetchNodes = async function fetchNodes() {
   const con = document.getElementById('nodes-container');
   try {
     const [nodes, discover] = await Promise.all([
@@ -1550,8 +1550,8 @@ async function fetchNodes() {
       html += td('<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select id="sel-'+esc(n.mac)+'" style="background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.82em;max-width:300px;min-width:180px;outline:none;">'+buildOptions(currentSid)+'</select><button  id="sbtn-'+esc(n.mac)+'" style="background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;">\uD83D\uDCBE Speichern</button><span id="smsg-'+esc(n.mac)+'"></span></div>'+ackHint);
       // LED-Spalte
       html += td('<div style="display:flex;flex-direction:column;gap:5px;align-items:center;">'
-        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:true})" title="LED ein" style="background:rgba(239,68,68,.2);color:#F87171;border:1px solid rgba(239,68,68,.4);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">🔴 Ein</button>'
-        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:false})" title="LED aus" style="background:var(--bg-surface2);color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">⚫ Aus</button>'
+        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:true})" title="LED ein" style="background:rgba(239,68,68,.2);color:#F87171;border:1px solid rgba(239,68,68,.4);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\uD83D\uDD34 Ein</button>'
+        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:false})" title="LED aus" style="background:var(--bg-surface2);color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\u26AB Aus</button>'
         +'<span id="ledmsg-'+esc(n.mac)+'" style="font-size:.75em;min-height:14px;"></span>'
         +'</div>');
       html += '</tr>';
@@ -1563,7 +1563,7 @@ async function fetchNodes() {
   }
 }
 
-async function saveNodeConfig(mac) {
+window.saveNodeConfig = async function saveNodeConfig(mac) {
   const sel = document.getElementById('sel-'+mac);
   const btn = document.getElementById('sbtn-'+mac);
   const msg = document.getElementById('smsg-'+mac);
@@ -1590,7 +1590,7 @@ async function saveNodeConfig(mac) {
   }
 }
 
-async function sendNodeCmd(mac, cmd) {
+window.sendNodeCmd = async function sendNodeCmd(mac, cmd) {
   const msgEl = document.getElementById('ledmsg-'+mac);
   if (msgEl) msgEl.textContent = '…';
   try {
@@ -1639,7 +1639,7 @@ function showPreview(d, fname) {
 }
 const prow = (l,v) => '<div class="preview-row"><span>'+l+'</span><b>'+v+'</b></div>';
 
-async function doImport() {
+window.doImport = async function doImport() {
   if (!importData) return;
   const house = document.getElementById('imp-house').value.trim() || 'MeinHaus';
   const btn   = document.getElementById('imp-btn');
@@ -1659,7 +1659,7 @@ function showResult(type, msg) {
   const rb = document.getElementById('imp-result');
   rb.className = 'result-box '+type; rb.innerHTML = msg; rb.style.display = 'block';
 }
-function clearImport() {
+window.clearImport = function clearImport() {
   importData = null;
   document.getElementById('file-in').value = '';
   document.getElementById('preview-box').style.display  = 'none';
@@ -1715,11 +1715,11 @@ async function fetchLogs() {
   } catch {}
 }
 
-function scrollLogBottom() {
+window.scrollLogBottom = function scrollLogBottom() {
   const c = lc(); c.scrollTop = c.scrollHeight;
   document.getElementById('ni').style.display = 'none';
 }
-function clearLogs() {
+window.clearLogs = function clearLogs() {
   lc().querySelectorAll('.le').forEach(e => e.remove());
   document.getElementById('log-empty').style.display = '';
   newestTs = Date.now(); displayed = [];
@@ -1731,7 +1731,7 @@ function applyLogFilter() {
     if (e) el.style.display = matchLog(e,f) ? '' : 'none';
   });
 }
-function exportLogs() {
+window.exportLogs = function exportLogs() {
   const f = gf();
   const txt = displayed.filter(e=>matchLog(e,f))
     .map(e=>'['+new Date(e.ts).toISOString()+'] ['+e.level.toUpperCase()+'] ['+e.category+'] '+e.message+(e.detail?' \u2014 '+e.detail:'')).join('\\n');
@@ -1804,7 +1804,7 @@ async function doUpdate() {
 
 // \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 // ── Copy-to-Clipboard ─────────────────────────────────────────────────────────
-function copyCmd(btn) {
+window.copyCmd = function copyCmd(btn) {
   const cmd = btn.dataset.cmd;
   if (!cmd) return;
   navigator.clipboard.writeText(cmd).then(() => {
