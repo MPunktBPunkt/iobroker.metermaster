@@ -1,0 +1,29 @@
+{
+  "name": "iobroker.metermaster",
+  "version": "0.7.1",
+  "description": "ioBroker Adapter for the MeterMaster Android App – receives meter readings and manages ESP32 display nodes",
+  "author": {
+    "name": "MPunktBPunkt",
+    "url": "https://github.com/MPunktBPunkt"
+  },
+  "homepage": "https://github.com/MPunktBPunkt/iobroker.metermaster",
+  "license": "MIT",
+  "keywords": [
+    "ioBroker",
+    "meter",
+    "reading",
+    "smart home",
+    "esp32"
+  ],
+  "main": "main.js",
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.0.0"
+  },
+  "devDependencies": {}
+}
