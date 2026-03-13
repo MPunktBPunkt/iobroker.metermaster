@@ -1,156 +1,73 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.5.0",
+    "version": "0.7.0",
+    "news": {
+      "0.7.0": {
+        "en": "ESP32 cmd commands (LED, meter switch), sendNodeCmd in Web-UI Nodes tab",
+        "de": "ESP32 cmd-Befehle (LED, Zählerwechsel), sendNodeCmd im Web-UI Nodes-Tab"
+      },
+      "0.6.0": {
+        "en": "ESP32 node registration via direct adapter API (POST /api/register), configAck, cmd state",
+        "de": "ESP32 Node-Registrierung direkt am Adapter (POST /api/register), configAck, cmd-State"
+      },
+      "0.5.0": {
+        "en": "ESP32 node management: nodesCache, Nodes tab, /api/nodes, /api/discover, statistics dashboard",
+        "de": "ESP32 Node-Verwaltung: nodesCache, Nodes-Tab, /api/nodes, /api/discover, Statistik-Dashboard"
+      },
+      "0.4.0": {
+        "en": "GitHub version check with releases/tags fallback, update commands with clipboard copy, favicon 204",
+        "de": "GitHub-Versionscheck mit Releases/Tags-Fallback, Update-Befehle mit Clipboard-Copy, favicon 204"
+      },
+      "0.3.1": {
+        "en": "Bugfix: literal newlines in template strings causing SyntaxError in browser",
+        "de": "Bugfix: Literal-Zeilenumbrüche in Template-Strings verursachten SyntaxError im Browser"
+      },
+      "0.1.0": {
+        "en": "Initial release: HTTP receiver, Web-UI, log viewer, app import",
+        "de": "Erstveröffentlichung: HTTP-Empfänger, Web-UI, Log-Viewer, App-Import"
+      }
+    },
     "title": "MeterMaster",
     "titleLang": {
-      "de": "MeterMaster",
-      "en": "MeterMaster"
+      "en": "MeterMaster",
+      "de": "MeterMaster"
     },
     "desc": {
-      "de": "Empfängt Zählerablesungen von der MeterMaster Android-App und speichert sie als ioBroker-Datenpunkte mit korrekten Zeitstempeln.",
-      "en": "Receives meter readings from the MeterMaster Android app and stores them as ioBroker states with correct timestamps."
+      "en": "Receives meter readings from the MeterMaster Android App and manages ESP32 display nodes",
+      "de": "Empfängt Zählerablesungen von der MeterMaster Android-App und verwaltet ESP32 Display-Nodes"
     },
     "authors": [
-      "MeterMaster"
+      "MPunktBPunkt"
     ],
     "keywords": [
       "meter",
       "reading",
-      "metermaster",
-      "smart metering"
+      "energy",
+      "esp32",
+      "display"
     ],
     "license": "MIT",
+    "mode": "daemon",
     "type": "general",
     "main": "main.js",
     "icon": "metermaster.svg",
     "enabled": true,
-    "mode": "daemon",
-    "platform": "Javascript/Node.js",
-    "materialize": false,
-    "noConfig": false,
+    "extIcon": "https://raw.githubusercontent.com/MPunktBPunkt/iobroker.metermaster/main/admin/metermaster.svg",
+    "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",
+    "allowInit": true,
+    "compact": false,
     "adminUI": {
       "config": "json"
-    },
-    "jsonConfig": {
-      "i18n": false,
-      "items": {
-        "port": {
-          "type": "number",
-          "label": "HTTP Port",
-          "help": "Port auf dem der Adapter auf Ablesungen wartet (Standard: 8089)",
-          "min": 1024,
-          "max": 65535,
-          "default": 8089,
-          "sm": 6
-        },
-        "user": {
-          "type": "text",
-          "label": "Benutzername",
-          "help": "Wird in der MeterMaster App unter Einstellungen → ioBroker eingetragen",
-          "default": "metermaster",
-          "sm": 6
-        },
-        "password": {
-          "type": "password",
-          "label": "Passwort",
-          "help": "Mindestens 8 Zeichen empfohlen",
-          "default": "",
-          "sm": 6
-        },
-        "keepHistory": {
-          "type": "number",
-          "label": "Historie aufbewahren (Einträge pro Zähler)",
-          "help": "0 = unbegrenzt",
-          "default": 0,
-          "sm": 6
-        },
-        "verboseLogging": {
-          "type": "checkbox",
-          "label": "Ausführliches Logging",
-          "help": "Alle eingehenden Verbindungen, Datenpunkte und Sync-Vorgänge im Log-Viewer protokollieren",
-          "default": true,
-          "sm": 12
-        },
-        "logBufferSize": {
-          "type": "number",
-          "label": "Log-Puffer (Einträge)",
-          "help": "Maximale Anzahl gespeicherter Log-Einträge im Log-Viewer (Standard: 500)",
-          "min": 50,
-          "max": 5000,
-          "default": 500,
-          "sm": 6
-        }
-      }
-    },
-    "news": {
-      "0.5.0": {
-        "en": "ESP32 Node management: Nodes tab in Web-UI with IP, firmware version and meter assignment; /api/nodes, /api/discover, /api/nodes/{mac}/config endpoints; auto state creation on heartbeat; System tab with statistics dashboard",
-        "de": "ESP32 Node-Verwaltung: Nodes-Tab in Web-UI mit IP, FW-Version und Zähler-Zuweisung; /api/nodes, /api/discover, /api/nodes/{mac}/config Endpunkte; automatisches State-Anlegen bei Heartbeat; System-Tab mit Statistik-Dashboard"
-      },
-      "0.1.0": {
-        "en": "Initial release – HTTP receiver with Web-UI, Log-Viewer, Data-Tab and App-Import",
-        "de": "Erstveröffentlichung – HTTP-Empfänger mit Web-UI, Log-Viewer, Daten-Tab und App-Import"
-      },
-      "0.2.1": {
-        "en": "System tab with GitHub update check and one-click update; fixed adapter.start() incompatibility with adapter-core v3.x; added admin/ folder (config page & icon)",
-        "de": "System-Tab mit GitHub-Versionscheck + Ein-Klick-Update; adapter.start() für adapter-core v3.x gefixt; admin/-Ordner ergänzt (Konfig-Seite + Icon)"
-      },
-      "0.2.2": {
-        "en": "Bugfix: tab switching broken in some ioBroker environments — replaced inline onclick with addEventListener",
-        "de": "Bugfix: Tab-Wechsel in manchen ioBroker-Umgebungen defekt — onclick-Attribute durch addEventListener ersetzt"
-      },
-      "0.2.3": {
-        "en": "Bugfix: validateReading() was called but never defined — caused ReferenceError on sync (unexpected end of stream in app)",
-        "de": "Bugfix: validateReading() wurde aufgerufen aber nie definiert — ReferenceError beim Sync (unexpected end of stream in App)"
-      },
-      "0.2.4": {
-        "en": "Cache restore on startup (data tab populated after restart); version shown in header; robust tab switching with event delegation",
-        "de": "Cache-Wiederherstellung beim Start (Daten-Tab nach Neustart befüllt); Version im Header; robusteres Tab-Switching mit Event-Delegation"
-      },
-      "0.2.5": {
-        "en": "Bugfix: cache restore used wrong key format (missing namespace) → data tab always empty after restart; all top-level addEventListener moved into init to prevent crash on null element",
-        "de": "Bugfix: Cache-Wiederherstellung nutzte falsches Key-Format (fehlender Namespace) → Daten-Tab nach Neustart immer leer; alle top-level addEventListener in init() verschoben um TypeError bei null-Element zu verhindern"
-      },
-      "0.2.6": {
-        "en": "Bugfix: tab buttons replaced div with native button elements; showTab() exposed as window.showTab; button CSS reset",
-        "de": "Bugfix: Tab-Elemente von div auf native button-Elemente umgestellt; showTab() als window.showTab verfügbar; button CSS-Reset"
-      },
-      "0.2.7": {
-        "en": "Bugfix: JavaScript moved from inline <script> to external /app.js — fixes CSP blocking in ioBroker admin proxy (tabs non-functional, data tab always empty)",
-        "de": "Bugfix: JavaScript aus inline <script> in externe /app.js verschoben — behebt CSP-Blockierung durch ioBroker-Admin-Proxy (Tabs ohne Funktion, Daten-Tab leer)"
-      },
-      "0.2.8": {
-        "en": "Bugfix: reverted external app.js — relative URL resolved against ioBroker admin proxy, not port 8089; back to inline script (no top-level crash possible)",
-        "de": "Bugfix: externe app.js rückgängig — relative URL wurde gegen ioBroker-Admin-Proxy aufgelöst, nicht Port 8089; zurück zu Inline-Script (kein top-level Crash möglich)"
-      },
-      "0.2.9": {
-        "en": "Bugfix: all non-ASCII characters (emojis, dashes, special chars) in browser JS escaped as \\uXXXX — eliminates SyntaxError caused by U+FE0F Variation Selector and other multi-byte chars",
-        "de": "Bugfix: alle Nicht-ASCII-Zeichen (Emojis, Gedankenstriche, Sonderzeichen) im Browser-JS als \\uXXXX escaped — behebt SyntaxError durch U+FE0F Variation Selector und andere Multi-Byte-Zeichen"
-      },
-      "0.3.0": {
-        "en": "Bugfix: correct Unicode escaping for all non-ASCII chars in browser JS (surrogate pairs for emojis > U+FFFF, U+FE0F removed from TYPE_ICONS); SyntaxError fully resolved",
-        "de": "Bugfix: korrekte Unicode-Escapes für alle Nicht-ASCII im Browser-JS (Surrogate-Pairs für Emojis > U+FFFF, U+FE0F aus TYPE_ICONS entfernt); SyntaxError vollständig behoben"
-      },
-      "0.3.1": {
-        "en": "Bugfix: literal newlines in single-quoted JS strings inside template literal caused SyntaxError on browser line 543; replaced with String.fromCharCode(10)",
-        "de": "Bugfix: Literal-Newlines in Single-Quoted JS-Strings im Template-Literal verursachten SyntaxError auf Browser-Zeile 543; durch String.fromCharCode(10) ersetzt"
-      },
-      "0.3.2": {
-        "en": "Bugfix: duplicate fetchData in template caused onclick SyntaxError on line 543; removed stale block, kept correct data-hist version",
-        "de": "Bugfix: doppeltes fetchData im Template verursachte onclick SyntaxError auf Zeile 543; veralteten Block entfernt, korrekte data-hist Version behalten"
-      }
-    },
-    "readme": "https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/README.md",
-    "loglevel": "info",
-    "author": "MPunktBPunkt <https://github.com/MPunktBPunkt>"
+    }
   },
   "native": {
     "port": 8089,
     "user": "metermaster",
     "password": "",
-    "keepHistory": 0,
-    "verboseLogging": true
+    "verboseLogging": true,
+    "logBufferSize": 500,
+    "keepHistory": 0
   },
   "objects": [],
   "instanceObjects": [
@@ -158,7 +75,7 @@
       "_id": "info",
       "type": "channel",
       "common": {
-        "name": "Informationen"
+        "name": "Information"
       },
       "native": {}
     },
@@ -166,7 +83,7 @@
       "_id": "info.connection",
       "type": "state",
       "common": {
-        "name": "Verbunden",
+        "name": "Adapter verbunden",
         "type": "boolean",
         "role": "indicator.connected",
         "read": true,
@@ -181,7 +98,7 @@
       "common": {
         "name": "Letzter Sync",
         "type": "string",
-        "role": "value.datetime",
+        "role": "value.time",
         "read": true,
         "write": false,
         "def": ""
@@ -192,7 +109,7 @@
       "_id": "info.readingsReceived",
       "type": "state",
       "common": {
-        "name": "Empfangene Ablesungen gesamt",
+        "name": "Ablesungen empfangen",
         "type": "number",
         "role": "value",
         "read": true,

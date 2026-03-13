@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.6.0';
+const CURRENT_VERSION = '0.7.0';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -115,6 +115,7 @@ adapter.on('stateChange', async (id, state) => {
     if (field === 'lastSeen')  nodesCache[mac].lastSeen  = Number(state.val);
     if (field === 'configAck') nodesCache[mac].configAck = String(state.val);
     if (field === 'config')    nodesCache[mac].config    = String(state.val);
+    if (field === 'cmd' && state.val) nodesCache[mac].cmd = String(state.val);
 
     if (field === 'lastSeen') {
         const n = nodesCache[mac];
@@ -198,6 +199,7 @@ async function restoreNodesFromStates() {
             if (field === 'lastSeen')  nodesCache[mac].lastSeen  = Number(state.val);
             if (field === 'configAck') nodesCache[mac].configAck = String(state.val);
             if (field === 'config')    nodesCache[mac].config    = String(state.val);
+            if (field === 'cmd' && state.val) nodesCache[mac].cmd = String(state.val);
         }
         if (count > 0) log(LVL.INFO, CAT.NODE, `Nodes wiederhergestellt`, `${count} ESP32-Node(s) aus States geladen`);
         else           log(LVL.DEBUG, CAT.NODE, 'Keine registrierten Nodes gefunden');
@@ -217,6 +219,7 @@ async function ensureNodeStates(mac) {
     await ensureState(`${base}.lastSeen`,  { name: 'Zuletzt gesehen (ms)', type: 'number', role: 'value.time',   read: true, write: false });
     await ensureState(`${base}.config`,    { name: 'Konfiguration (JSON)', type: 'string', role: 'value',        read: true, write: true  });
     await ensureState(`${base}.configAck`, { name: 'Config-Quittierung',   type: 'string', role: 'value',        read: true, write: false });
+    await ensureState(`${base}.cmd`,       { name: 'Befehl (JSON)',         type: 'string', role: 'value',        read: true, write: true  });
 }
 
 // ─── HTTP-Server ──────────────────────────────────────────────────────────────
@@ -303,8 +306,14 @@ function startHttpServer() {
             if (req.method === 'POST' && nodeMatch) {
                 readBody(req, b => handleNodeConfig(nodeMatch[1].toUpperCase(), b, res, clientIp));
             } else {
-                log(LVL.WARN, CAT.CONNECT, `Unbekannte URL`, `${req.method} ${url} von ${clientIp}`);
-                res.writeHead(404); res.end(JSON.stringify({ error: 'Nicht gefunden' }));
+                // Node-Cmd: POST /api/nodes/{MAC}/cmd
+                const cmdMatch = url.match(/^\/api\/nodes\/([A-Fa-f0-9]+)\/cmd$/);
+                if (req.method === 'POST' && cmdMatch) {
+                    readBody(req, b => handleNodeCmd(cmdMatch[1].toUpperCase(), b, res));
+                } else {
+                    log(LVL.WARN, CAT.CONNECT, `Unbekannte URL`, `${req.method} ${url} von ${clientIp}`);
+                    res.writeHead(404); res.end(JSON.stringify({ error: 'Nicht gefunden' }));
+                }
             }
         }
     });
@@ -643,6 +652,29 @@ async function handleNodeConfig(mac, body, res, clientIp) {
     }
 }
 
+// ─── Node-Befehl (POST /api/nodes/{MAC}/cmd) ──────────────────────────────────
+// Unterstützte Befehle: { "ledOn": true/false }
+//                       { "sid": "...", "label": "...", "unit": "..." }  (Zähler wechseln)
+async function handleNodeCmd(mac, body, res) {
+    let data;
+    try { data = JSON.parse(body); } catch {
+        sendJson(res, 400, { error: 'Ungültiges JSON' }); return;
+    }
+    const cmdStr = JSON.stringify(data);
+    try {
+        await ensureNodeStates(mac);
+        await adapter.setStateAsync(`nodes.${mac}.cmd`, { val: cmdStr, ack: true });
+        if (!nodesCache[mac]) nodesCache[mac] = { mac };
+        nodesCache[mac].cmd = cmdStr;
+        const keys = Object.keys(data).join(', ');
+        log(LVL.INFO, CAT.NODE, `Befehl gesetzt`, `${mac} → ${keys}`);
+        sendJson(res, 200, { ok: true, mac, cmd: data });
+    } catch (e) {
+        log(LVL.ERROR, CAT.NODE, `Cmd-Fehler`, `${mac}: ${e.message}`);
+        sendJson(res, 500, { error: e.message });
+    }
+}
+
 // ─── Node-Registrierung via HTTP (POST /api/register) ────────────────────────
 // ESP32 sendet: { mac, ip, name, version, configAck? }
 // Adapter legt States an, aktualisiert Cache, antwortet mit aktuellem Config-JSON
@@ -708,14 +740,19 @@ async function handleNodeAck(mac, body, res) {
 
 // ─── Node Config-Poll (GET /api/nodes/{MAC}/config) ───────────────────────────
 // ESP32 fragt alle 15s aktuelle Config ab
-function handleNodeConfigPoll(mac, res) {
+async function handleNodeConfigPoll(mac, res) {
     const node = nodesCache[mac];
     if (!node) {
-        // Node noch nicht registriert – leere Antwort
-        sendJson(res, 200, { ok: true, config: null });
+        sendJson(res, 200, { ok: true, config: null, cmd: null });
         return;
     }
-    sendJson(res, 200, { ok: true, mac, config: node.config || null });
+    // cmd einmalig ausliefern und danach löschen
+    const cmd = node.cmd || null;
+    if (cmd) {
+        node.cmd = null;
+        try { await adapter.setStateAsync(`nodes.${mac}.cmd`, { val: '', ack: true }); } catch(_) {}
+    }
+    sendJson(res, 200, { ok: true, mac, config: node.config || null, cmd });
 }
 
 // ─── Web-Oberfläche ───────────────────────────────────────────────────────────
@@ -1493,7 +1530,7 @@ async function fetchNodes() {
     html += '<table style="width:100%;border-collapse:collapse;font-size:.85em;">';
     html += '<thead><tr style="text-align:left;">';
     const th = (t) => '<th style="padding:10px 12px;color:var(--text-dim);font-size:.8em;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);background:var(--bg-surface);">'+t+'</th>';
-    html += th('Status')+th('Name')+th('IP-Adresse')+th('FW-Version')+th('Zuletzt gesehen')+th('Z\u00E4hler zuweisen');
+    html += th('Status')+th('Name')+th('IP-Adresse')+th('FW-Version')+th('Zuletzt gesehen')+th('Z\u00E4hler zuweisen')+th('LED');
     html += '</tr></thead><tbody>';
     for (const n of nodes) {
       let currentSid = '';
@@ -1511,6 +1548,12 @@ async function fetchNodes() {
       html += td('<span style="background:var(--bg-surface3);color:var(--secondary);font-family:Consolas,monospace;font-size:.82em;padding:2px 8px;border-radius:6px;">'+esc(n.version||'\u2013')+'</span>');
       html += td(esc(fmtAgo(n.lastSeen)), 'color:var(--text-dim);font-size:.82em;');
       html += td('<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select id="sel-'+esc(n.mac)+'" style="background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.82em;max-width:300px;min-width:180px;outline:none;">'+buildOptions(currentSid)+'</select><button  id="sbtn-'+esc(n.mac)+'" style="background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;">\uD83D\uDCBE Speichern</button><span id="smsg-'+esc(n.mac)+'"></span></div>'+ackHint);
+      // LED-Spalte
+      html += td('<div style="display:flex;flex-direction:column;gap:5px;align-items:center;">'
+        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:true})" title="LED ein" style="background:rgba(239,68,68,.2);color:#F87171;border:1px solid rgba(239,68,68,.4);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">🔴 Ein</button>'
+        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:false})" title="LED aus" style="background:var(--bg-surface2);color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">⚫ Aus</button>'
+        +'<span id="ledmsg-'+esc(n.mac)+'" style="font-size:.75em;min-height:14px;"></span>'
+        +'</div>');
       html += '</tr>';
     }
     html += '</tbody></table></div>';
@@ -1544,6 +1587,26 @@ async function saveNodeConfig(mac) {
     msg.innerHTML = '<span style="color:var(--danger);font-size:.82em;">\u2717 '+esc(e.message)+'</span>';
   } finally {
     btn.disabled = false;
+  }
+}
+
+async function sendNodeCmd(mac, cmd) {
+  const msgEl = document.getElementById('ledmsg-'+mac);
+  if (msgEl) msgEl.textContent = '…';
+  try {
+    const r = await fetch('/api/nodes/'+encodeURIComponent(mac)+'/cmd', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(cmd)
+    });
+    const d = await r.json();
+    if (msgEl) {
+      msgEl.innerHTML = d.ok
+        ? '<span style="color:var(--accent);">✓</span>'
+        : '<span style="color:var(--danger);">✗</span>';
+      setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 3000);
+    }
+  } catch(e) {
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗</span>';
   }
 }
 

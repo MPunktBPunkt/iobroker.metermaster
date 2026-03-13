@@ -1,12 +1,12 @@
 # ioBroker MeterMaster Adapter
 
-![MeterMaster Banner](github-banner.svg)
+[![MeterMaster Banner](https://github.com/MPunktBPunkt/iobroker.metermaster/raw/main/github-banner.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.7.0-blue.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/MPunktBPunkt/iobroker.metermaster/blob/main/LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org)
 
-Empfängt Zählerablesungen von der **MeterMaster Android-App** und speichert sie als ioBroker-Datenpunkte mit korrekten Zeitstempeln und vollständiger Historie. Verwaltet außerdem **MeterMaster ESP32 Display-Nodes** mit automatischer Erkennung und Zähler-Zuweisung.
+Empfängt Zählerablesungen von der **MeterMaster Android-App**, speichert sie als ioBroker-Datenpunkte und verwaltet **ESP32 Display-Nodes** für die Anzeige von Zählerwerten auf OLED-Displays.
 
 ---
 
@@ -19,7 +19,8 @@ Empfängt Zählerablesungen von der **MeterMaster Android-App** und speichert si
 - 🔐 **Basic Auth** – optionaler Benutzername/Passwort-Schutz
 - 🌐 **Web-UI** – eingebauter Browser-Viewer mit 5 Tabs (Daten, Nodes, Import, Logs, System)
 - 📥 **Import** – App-Backup (Schema 2.0) direkt über die Web-UI einspielen
-- 🖥️ **ESP32 Node-Verwaltung** – automatische Erkennung, Online-Status, Zähler-Zuweisung per Dropdown
+- 📡 **ESP32 Node-Verwaltung** – registrierte Display-Nodes anzeigen und konfigurieren
+- 🎛️ **Fernsteuerung** – Zähler und LED der ESP32-Nodes direkt aus der Web-UI steuern
 
 ---
 
@@ -29,60 +30,39 @@ Empfängt Zählerablesungen von der **MeterMaster Android-App** und speichert si
 
 ```bash
 iobroker add https://github.com/MPunktBPunkt/iobroker.metermaster
+iobroker start metermaster
 ```
-
-> Erfordert eine aktive Internetverbindung auf dem ioBroker-Server.
 
 ### Option B – manuell (ohne Internet / Offline)
 
 ```bash
-# 1. Ordner anlegen
 mkdir -p /opt/iobroker/node_modules/iobroker.metermaster
-
-# 2. Dateien kopieren (USB, SCP, WinSCP …)
-#    Zielordner: /opt/iobroker/node_modules/iobroker.metermaster/
-#    Benötigte Dateien: main.js  io-package.json  package.json
-
-# 3. Abhängigkeiten installieren
+# Dateien kopieren: main.js  io-package.json  package.json  admin/
 cd /opt/iobroker/node_modules/iobroker.metermaster
 npm install
-
-# 4. Adapter registrieren
 cd /opt/iobroker
 iobroker add metermaster
+iobroker start metermaster
 ```
 
-### Instanz konfigurieren
+Firewall falls nötig: `sudo ufw allow 8089/tcp`
 
-Nach der Installation erscheint der Adapter im ioBroker Admin unter **Adapter → MeterMaster**.  
-Instanz anlegen und konfigurieren:
+Vollständige Installationsanleitung: [INSTALLATION.md](INSTALLATION.md)
+
+---
+
+## Instanz konfigurieren
+
+Nach der Installation → ioBroker Admin → **Adapter → MeterMaster** → Instanz anlegen:
 
 | Einstellung | Standard | Beschreibung |
 |---|---|---|
 | HTTP Port | `8089` | Port auf dem der Adapter lauscht |
-| Benutzername | `metermaster` | Basic-Auth Username (App-Einstellungen) |
-| Passwort | – | Basic-Auth Passwort (App-Einstellungen) |
-| Ausführliches Logging | ✅ | Debug-Einträge im Log-Viewer anzeigen |
+| Benutzername | `metermaster` | Basic-Auth Username |
+| Passwort | – | Basic-Auth Passwort |
+| Ausführliches Logging | ✅ | DEBUG-Einträge im Log-Viewer |
 | Log-Puffer | `500` | Max. gespeicherte Log-Einträge |
-| Historie aufbewahren | `0` | 0 = unbegrenzt, sonst max. Einträge pro Zähler |
-
-### Adapter starten
-
-```bash
-iobroker start metermaster
-```
-
-Im ioBroker-Log erscheint:
-```
-[SYSTEM] MeterMaster Adapter v0.1.0 gestartet — Port: 8089 | Logging: ausführlich
-[SYSTEM] Lauscht auf Port 8089 — Web-UI: http://IP:8089/
-```
-
-### Firewall (falls nötig)
-
-```bash
-sudo ufw allow 8089/tcp
-```
+| Historie aufbewahren | `0` | 0 = unbegrenzt |
 
 ---
 
@@ -93,87 +73,110 @@ sudo ufw allow 8089/tcp
 | Feld | Wert |
 |---|---|
 | ioBroker aktivieren | ✅ |
-| IP / Hostname | IP-Adresse des ioBroker-Servers |
+| IP / Hostname | IP des ioBroker-Servers |
 | Adapter-Port | `8089` |
 | Benutzername | wie im Adapter konfiguriert |
 | Passwort | wie im Adapter konfiguriert |
 
-Dann **„Verbindung testen"** → sollte `MeterMaster-Adapter erreichbar ✓` zurückgeben.
-
----
-
-## Angelegte Datenpunkte
-
-Nach dem ersten Sync erscheinen unter `metermaster.0`:
-
-```
-metermaster.0
-  info.connection          – Adapter verbunden (boolean)
-  info.lastSync            – Zeitpunkt letzter Sync (string)
-  info.readingsReceived    – Ablesungen gesamt (number)
-
-  └── MeinHaus
-       ├── Westerheim
-       │    └── Warmwasser
-       │         ├── readings.latest      (number, ts = Ablesedatum)
-       │         ├── readings.latestDate  (string, ISO-8601)
-       │         ├── readings.history     (array, JSON)
-       │         ├── name
-       │         ├── unit
-       │         └── typeName
-       └── shared
-            └── Stromzaehler
-                 └── ...
-```
-
-**`readings.history` Format:**
-```json
-[
-  { "value": 125.3, "unit": "m³", "readingDate": "2024-01-15T10:00:00.000Z", "ts": 1705312800000 },
-  { "value": 128.7, "unit": "m³", "readingDate": "2024-02-12T09:30:00.000Z", "ts": 1707729000000 }
-]
-```
+„Verbindung testen" → sollte `MeterMaster-Adapter erreichbar ✓` zurückgeben.
 
 ---
 
 ## Web-UI
 
-Aufrufbar im Browser ohne Passwort:
+Aufrufbar ohne Passwort:
 
 ```
-http://192.168.178.113:8089/
+http://{ioBroker-IP}:8089/
 ```
 
 | Tab | Inhalt |
 |---|---|
-| 📊 Daten | Alle empfangenen Zähler, gegliedert nach Haus/Wohnung, mit aufklappbarem Verlauf |
-| 📡 Nodes | Registrierte ESP32 Nodes: Status, IP, FW-Version, Zähler-Zuweisung per Dropdown |
-| 📥 Import | App-Backup (JSON, Schema 2.0) einspielen – Drag & Drop |
-| 📋 Logs | Echtzeit-Log mit Filter nach Level/Kategorie, Auto-Scroll, Export |
-| ⚙️ System | Statistiken, GitHub-Versionscheck, Update, Konsolenbefehle |
+| 📊 **Daten** | Alle empfangenen Zähler, gegliedert nach Haus/Wohnung, mit aufklappbarem Verlauf |
+| 📡 **Nodes** | Registrierte ESP32-Nodes: Status, IP-Link, FW-Version, Zähler-Dropdown, LED-Steuerung |
+| 📥 **Import** | App-Backup (JSON Schema 2.0) per Drag & Drop einspielen |
+| 📋 **Logs** | Echtzeit-Log mit Filter, Auto-Scroll, Export |
+| ⚙️ **System** | Statistiken, GitHub-Versionscheck, Ein-Klick-Update |
 
 ---
 
-## ESP32 Node-Verwaltung
+## ESP32 Display-Node
 
-Der Adapter erkennt MeterMaster ESP32 Nodes (ab Firmware v1.5.0) automatisch. Nodes schreiben ihre States direkt via ioBroker **simple-api** (Port 8087) — der Adapter reagiert via -Handler und legt alle benötigten States unter  automatisch an.
+Der Adapter unterstützt den [MeterMaster ESP32 Node](https://github.com/MPunktBPunkt/esp32.MeterMaster) als OLED-Display-Companion.
 
-**Angelegte Node-States:**
+### Ablauf
+1. ESP32 sendet Heartbeat alle 60 s: `POST :8089/api/register`
+2. Adapter legt `metermaster.0.nodes.{MAC}.*` States automatisch an
+3. ESP32 pollt alle 15 s: `GET :8089/api/nodes/{MAC}/config`
+4. Adapter liefert Config und optionale Sofortbefehle (cmd)
 
+### Nodes-Tab
+- Online/Offline-Badge (grün wenn Heartbeat < 120 s)
+- IP als klickbarer Link → öffnet ESP32 Web-UI
+- Zähler-Dropdown: Zähler zuweisen → ESP32 übernimmt beim nächsten Poll
+- LED-Buttons: 🔴 Ein / ⚫ Aus → sofortiger Befehl via cmd-State
 
-**Zähler zuweisen** über den Nodes-Tab der Web-UI → Dropdown → Speichern → ESP32 übernimmt beim nächsten Poll (alle 15 s).
+---
+
+## Angelegte Datenpunkte
+
+```
+metermaster.0.
+├── info.connection        bool    Adapter verbunden
+├── info.lastSync          string  ISO-8601 Zeitpunkt letzter Sync
+├── info.readingsReceived  number  Ablesungen gesamt
+│
+├── {Haus}/{Wohnung}/{Zähler}/
+│   ├── readings.latest      number  Letzter Messwert (ts = Ablesedatum)
+│   ├── readings.latestDate  string  ISO-8601 Datum
+│   ├── readings.history     string  JSON-Array aller Ablesungen
+│   ├── name                 string
+│   ├── unit                 string
+│   └── typeName             string
+│
+└── nodes/{MAC}/
+    ├── ip          string  IP-Adresse des ESP32
+    ├── name        string  Gerätename
+    ├── version     string  Firmware-Version
+    ├── lastSeen    number  Timestamp letzter Heartbeat (ms)
+    ├── config      string  JSON-Config (Adapter schreibt, ESP32 liest)
+    ├── configAck   string  Quittierung durch ESP32
+    └── cmd         string  Sofortbefehl (Adapter schreibt, ESP32 liest+löscht)
+```
 
 ---
 
 ## HTTP API
 
-### Verbindungstest (ohne Auth)
-```
-GET http://host:8089/api/ping
-→ { "ok": true, "adapter": "metermaster", "version": "0.1.0" }
-```
+### Ohne Authentifizierung
 
-### Einzelne Ablesung
+| Methode | Pfad | Beschreibung |
+|---|---|---|
+| GET | `/` | Web-UI |
+| GET | `/api/version` | Version + GitHub-Check |
+| GET | `/api/stats` | Statistiken (Ablesungen, Uptime, Nodes) |
+| GET | `/api/data` | Alle gecachten Ablesungen |
+| GET | `/api/logs` | Log-Buffer (mit `?level=&category=&text=` Filter) |
+| GET | `/api/nodes` | Alle registrierten ESP32-Nodes |
+| GET | `/api/discover` | Bekannte Zähler-State-IDs |
+| POST | `/api/register` | ESP32 Heartbeat (kein Auth nötig) |
+| POST | `/api/update` | Adapter-Update starten |
+
+### Mit Basic Auth
+
+| Methode | Pfad | Beschreibung |
+|---|---|---|
+| GET | `/api/ping` | Verbindungstest |
+| POST | `/api/reading` | Einzelne Ablesung speichern |
+| POST | `/api/readings` | Batch-Ablesungen speichern |
+| POST | `/api/import` | App-Backup importieren |
+| GET | `/api/nodes/{MAC}/config` | Config für ESP32 abrufen |
+| POST | `/api/nodes/{MAC}/config` | Config für ESP32 setzen |
+| POST | `/api/nodes/{MAC}/configAck` | Config-Quittierung empfangen |
+| POST | `/api/nodes/{MAC}/cmd` | Sofortbefehl senden (LED, Zähler) |
+
+### Beispiel: Einzelne Ablesung
+
 ```
 POST http://host:8089/api/reading
 Authorization: Basic base64(user:passwort)
@@ -190,42 +193,26 @@ Content-Type: application/json
 }
 ```
 
-### Batch (mehrere Ablesungen)
-```
-POST http://host:8089/api/readings
-→ Array von Ablesung-Objekten
-→ { "ok": true, "stored": 14, "failed": 0, "errors": [] }
-```
+### Beispiel: Sofortbefehl an ESP32
 
-### Import (App-Backup)
 ```
-POST http://host:8089/api/import
-→ MeterMaster Schema-2.0-JSON
-→ { "ok": true, "stored": 342, "skipped": 0, "failed": 0 }
+POST http://host:8089/api/nodes/C8C9A3CB7B08/cmd
+Authorization: Basic base64(user:passwort)
+Content-Type: application/json
+
+{ "ledOn": true }
 ```
 
 ---
 
 ## Update
 
-### Option A – über die Web-UI (empfohlen)
+### Über die Web-UI (empfohlen)
+`http://IP:8089/` → Tab **⚙️ System** → „Auf Updates prüfen" → „Update installieren"
 
-Im Browser `http://IP:8089/` öffnen → Tab **⚙️ System** → **„Auf Updates prüfen"**.  
-Ist eine neue Version auf GitHub verfügbar, erscheint der Button **„Update installieren"** — ein Klick genügt. Der Adapter aktualisiert sich selbst und startet automatisch neu.
-
-### Option B – Kommandozeile
-
+### Kommandozeile
 ```bash
 iobroker upgrade metermaster https://github.com/MPunktBPunkt/iobroker.metermaster
-iobroker restart metermaster
-```
-
-### Option C – manuell (offline)
-
-Neue Dateien per USB/SCP überschreiben, dann:
-```bash
-cd /opt/iobroker/node_modules/iobroker.metermaster
-npm install
 iobroker restart metermaster
 ```
 
@@ -233,76 +220,40 @@ iobroker restart metermaster
 
 ## Changelog
 
-### 0.5.0
-- **ESP32 Node-Verwaltung:** automatische Erkennung via stateChange-Handler (simple-api Port 8087)
-- **Nodes-Tab** in der Web-UI: Online-Status, IP-Link, FW-Version, Zähler-Dropdown, Speichern
-- Neue API-Endpunkte: GET /api/nodes, GET /api/discover, POST /api/nodes/{MAC}/config
-- nodes.*-States werden beim ersten Heartbeat automatisch angelegt (ensureNodeStates)
-- Node-Cache (nodesCache) mit Wiederherstellung beim Start aus ioBroker-States
-- System-Tab: Statistik-Dashboard mit 4 Kacheln (Ablesungen, Uptime, Nodes online, Nodes gesamt)
-- Log-Kategorie NODE für alle Node-bezogenen Ereignisse
+### 0.7.0 (2026-03-13)
+- ESP32 cmd-Verarbeitung: LED und Zähler per Adapter fernsteuern
+- `POST /api/nodes/{MAC}/cmd` Endpunkt mit Basic Auth
+- `nodes.{MAC}.cmd` State – einmalige Auslieferung, danach automatisch gelöscht
+- LED-Buttons (🔴 Ein / ⚫ Aus) im Nodes-Tab der Web-UI
+- `sendNodeCmd()` JavaScript-Funktion im Web-UI
 
-### 0.4.0
-- GitHub Release v0.4.0 live, Versionscheck funktioniert
-- /favicon.ico antwortet 204 ohne Auth (keine WARN-Logs mehr)
-- GitHub-Check: Releases-API mit Tags-API Fallback
-- System-Tab: Update-Befehle mit Copy-to-Clipboard
+### 0.6.0 (2026-03-13)
+- ESP32 Registrierung direkt am Adapter (`POST /api/register`) statt über simple-api
+- `GET /api/nodes/{MAC}/config` – liefert Config + cmd an ESP32
+- `POST /api/nodes/{MAC}/configAck` – quittiert Config-Übernahme
+- `nodes.{MAC}.cmd` State als Sofortbefehl-Kanal
+- Architekturwechsel: keine `stateChange`-Abhängigkeit von simple-api mehr nötig
+
+### 0.5.0 (2026-03-12)
+- ESP32 Node-Verwaltung: `nodesCache`, `restoreNodesFromStates()`
+- Nodes-Tab in der Web-UI mit Online-Badge, IP-Link, Zähler-Dropdown
+- `/api/nodes`, `/api/discover`, `/api/nodes/{MAC}/config` (GET/POST)
+- Statistik-Dashboard im System-Tab (4 Kacheln)
+- Header-Stats: Ablesungen | Nodes online/gesamt | Uptime | Live
+
+### 0.4.0 (2026-03-09)
+- GitHub-Versionscheck: Releases-API mit Tags-Fallback
+- Update-Befehle mit Copy-to-Clipboard
+- favicon.ico antwortet 204 (keine Auth-Warn-Logs mehr)
 
 ### 0.3.1 (2026-03-07)
-- **Bugfix:** Literal-Zeilenumbrüche in `'...'`-String-Literalen innerhalb des Node.js-Template-Literals → `SyntaxError: Unexpected string` auf Browser-Zeile 543
-- Fix: `String.fromCharCode(10)` statt `\n` in den `doUpdate`-Strings
+- Bugfix: Literal-Zeilenumbrüche in Template-Strings → SyntaxError im Browser
 
 ### 0.3.0 (2026-03-07)
-- **Bugfix:** Korrekte Unicode-Escapes im Browser-JS: Emojis > U+FFFF als Surrogate-Pairs (`\uD83D\uDCC5`), `U+FE0F` aus `TYPE_ICONS` entfernt — `SyntaxError: Unexpected string` vollständig behoben
-
-### 0.2.9 (2026-03-07)
-- **Bugfix:** Alle Nicht-ASCII-Zeichen im Browser-JS durch `\uXXXX`-Escapes ersetzt — der `U+FE0F Variation Selector-16` (unsichtbar, hinter ⚙️ etc.) verursachte `SyntaxError: Unexpected string` und blockierte das komplette Script
-
-### 0.2.8 (2026-03-07)
-- **Bugfix:** Externe `/app.js` rückgängig — relative URL wurde vom Browser gegen den ioBroker-Admin-Proxy (Port 8081) aufgelöst, nicht gegen Port 8089 → `ERR_CONNECTION_REFUSED`
-- Zurück zu Inline-Script; alle top-level `addEventListener`-Aufrufe sind bereits in `initTabs()` (keine Crash-Möglichkeit)
-
-### 0.2.7 (2026-03-07)
-- **Bugfix:** JavaScript aus `<script>`-Block in separate `/app.js`-Route ausgelagert — der ioBroker-Admin-Proxy blockiert Inline-Scripts per CSP, externe Script-Dateien sind erlaubt
-
-### 0.2.6 (2026-03-07)
-- **Bugfix:** Tab-Wechsel: `<div>`-Elemente durch native `<button>` ersetzt — Klick-Events können durch Browser/CSP nicht geblockt werden
-- `showTab()` als `window.showTab` verfügbar (globaler Scope, onclick-Attribut funktioniert zuverlässig)
-- CSS-Reset für button-Elemente (kein Rahmen, kein appearance-Artefakt)
-
-### 0.2.5 (2026-03-07)
-- **Bugfix:** Cache-Wiederherstellung: Key-Format fehlte Namespace (`metermaster.0.`) → history/unit/typeName nie geladen, Daten-Tab immer leer
-- **Bugfix:** `addEventListener`-Aufrufe liefen beim Script-Load synchron — bei `null`-Element `TypeError` → `init()` nie aufgerufen → Tabs ohne Funktion
-- Alle EventListener in `initTabs()` verschoben (Dropzone, Log-Filter, System-Buttons)
-
-### 0.2.4 (2026-03-07)
-- **Bugfix:** Daten-Tab nach Adapter-Neustart leer — Cache wird jetzt beim Start aus ioBroker-States wiederhergestellt
-- Version wird im Web-UI Header angezeigt
-- Tab-Wechsel: robusteres Event-System mit Event Delegation + `pointer-events: all !important`
-- Startlog: Version war hardcoded `v1.0.0` statt dynamisch
-
-### 0.2.3 (2026-03-07)
-- **Bugfix:** `validateReading()` war nicht definiert → `ReferenceError` beim ersten Sync → App meldet „unexpected end of stream"
-
-### 0.2.2 (2026-03-07)
-- **Bugfix:** Tab-Wechsel in manchen ioBroker-Umgebungen ohne Funktion — `onclick`-Attribute durch `addEventListener` ersetzt (robuster, CSP-kompatibel)
-- `querySelector('[onclick=...]')` in `checkVersion()` durch `getElementById` ersetzt
-
-### 0.2.1 (2026-03-07)
-- **System-Tab** in der Web-UI mit GitHub-Versionscheck und Ein-Klick-Update
-- `/api/version` vergleicht installierte Version mit aktuellem GitHub-Release
-- `/api/update` führt `iobroker upgrade` aus und startet den Adapter automatisch neu
-- **Bugfix:** `adapter.start()` entfernt — inkompatibel mit `@iobroker/adapter-core` v3.x
-- **Bugfix:** `admin/`-Ordner ergänzt (`jsonConfig.json` + SVG-Icon) — Konfig-Seite war leer
+- Bugfix: Unicode-Escapes für Emojis > U+FFFF
 
 ### 0.1.0 (2026-03-06)
-- Erstveröffentlichung
-- HTTP-Empfänger mit Basic Auth
-- Automatisches Anlegen von Datenpunkten
-- Korrekte Zeitstempel (`ts` = Ablesedatum)
-- `readings.history` mit vollständiger Ablese-Historie
-- Web-UI mit Daten-Tab, Import-Tab und Log-Viewer
-- Import von MeterMaster App-Backups (Schema 2.0)
+- Erstveröffentlichung: HTTP-Empfänger, Web-UI, Log-Viewer, App-Import
 
 ---
 

@@ -1,16 +1,23 @@
 {
   "name": "iobroker.metermaster",
-  "version": "0.5.0",
-  "description": "Empfängt Zählerablesungen von der MeterMaster Android-App mit korrekten Zeitstempeln und History",
+  "version": "0.7.0",
+  "description": "ioBroker Adapter for the MeterMaster Android App – receives meter readings and manages ESP32 display nodes",
   "author": {
     "name": "MPunktBPunkt",
     "url": "https://github.com/MPunktBPunkt"
   },
   "homepage": "https://github.com/MPunktBPunkt/iobroker.metermaster",
   "license": "MIT",
+  "keywords": [
+    "ioBroker",
+    "meter",
+    "reading",
+    "smart home",
+    "esp32"
+  ],
   "main": "main.js",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=16"
   },
   "scripts": {
     "start": "node main.js"
@@ -18,19 +25,5 @@
   "dependencies": {
     "@iobroker/adapter-core": "^3.0.0"
   },
-  "keywords": [
-    "ioBroker",
-    "meter",
-    "reading",
-    "metermaster",
-    "smart metering",
-    "utility"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/MPunktBPunkt/iobroker.metermaster"
-  },
-  "bugs": {
-    "url": "https://github.com/MPunktBPunkt/iobroker.metermaster/issues"
-  }
+  "devDependencies": {}
 }

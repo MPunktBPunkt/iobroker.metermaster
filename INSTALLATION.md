@@ -1,133 +1,173 @@
-# MeterMaster ioBroker Adapter – Installation
+# MeterMaster Adapter – Installationsanleitung
+
+> Vollständige Schritt-für-Schritt-Anleitung für die Installation des `iobroker.metermaster`-Adapters.
+
+---
 
 ## Voraussetzungen
-- ioBroker läuft auf deinem Server
-- SSH-Zugang oder ioBroker-Konsole
-- ioBroker simple-api läuft auf Port 8087 (für ESP32 Node-Verwaltung)
+
+- ioBroker installiert und aktiv
+- Node.js ≥ 16 (empfohlen: Node 20 LTS)
+- Port **8089** auf dem ioBroker-Server erreichbar (ggf. Firewall öffnen)
+- ioBroker **Simple-API Adapter** installiert und aktiv (Port 8087) – wird vom ESP32 Node benötigt
 
 ---
 
-## Installation von GitHub (empfohlen)
+## Option A – Installation von GitHub (empfohlen)
 
 ```bash
-cd /opt/iobroker
-iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster
-iobroker restart metermaster.0
+# Adapter installieren
+iobroker add https://github.com/MPunktBPunkt/iobroker.metermaster
+
+# Adapter starten
+iobroker start metermaster
+```
+
+Zur Bestätigung im ioBroker-Log:
+```
+[SYSTEM] MeterMaster Adapter v0.7.0 gestartet — Port: 8089 | Logging: ausführlich
+[SYSTEM] Lauscht auf Port 8089 — Web-UI: http://IP:8089/
 ```
 
 ---
 
-## Manuelle Installation (offline)
-
-### 1. Dateien kopieren
+## Option B – Manuelle Installation (Offline / ohne GitHub-Zugang)
 
 ```bash
+# 1. Zielordner anlegen
 mkdir -p /opt/iobroker/node_modules/iobroker.metermaster
-# Zielordner: /opt/iobroker/node_modules/iobroker.metermaster/
-# Benötigte Dateien: main.js, io-package.json, package.json, admin/
-```
+mkdir -p /opt/iobroker/node_modules/iobroker.metermaster/admin
 
-### 2. Abhängigkeiten installieren
+# 2. Dateien übertragen (per USB, SCP, WinSCP o.ä.)
+#    Pflichtdateien:
+#      main.js
+#      io-package.json
+#      package.json
+#      admin/jsonConfig.json
+#      admin/metermaster.svg   (optional, für das Icon im ioBroker Admin)
 
-```bash
+# 3. Abhängigkeiten installieren
 cd /opt/iobroker/node_modules/iobroker.metermaster
 npm install
-```
 
-### 3. Adapter registrieren und starten
-
-```bash
+# 4. Adapter bei ioBroker registrieren
 cd /opt/iobroker
 iobroker add metermaster
+
+# 5. Adapter starten
 iobroker start metermaster
 ```
 
 ---
 
-## Konfiguration
+## Instanz konfigurieren
 
-In ioBroker Admin → Adapter → MeterMaster:
+Im ioBroker Admin unter **Adapter → MeterMaster** eine neue Instanz anlegen:
 
 | Einstellung | Standard | Beschreibung |
 |---|---|---|
-| Port | `8089` | HTTP-Server-Port |
+| HTTP Port | `8089` | Port auf dem der Adapter lauscht |
 | Benutzername | `metermaster` | Basic-Auth Username |
 | Passwort | – | Basic-Auth Passwort |
-| Ausführliches Logging | ✅ | Debug-Einträge sichtbar |
-| Log-Puffer | `500` | Max. Log-Einträge |
-| Historie aufbewahren | `0` | 0 = unbegrenzt |
+| Ausführliches Logging | ✅ | DEBUG-Einträge im Web-UI Log-Viewer anzeigen |
+| Log-Puffer | `500` | Max. gespeicherte Log-Einträge |
+| Historie aufbewahren | `0` | 0 = unbegrenzt, sonst max. Einträge pro Zähler |
 
-### Firewall (falls nötig)
+---
+
+## Firewall öffnen (falls nötig)
 
 ```bash
-sudo ufw allow 8089/tcp   # Adapter Web-UI + App-Sync
-sudo ufw allow 8087/tcp   # simple-api (für ESP32 Nodes)
+sudo ufw allow 8089/tcp
+sudo ufw reload
 ```
 
 ---
 
-## MeterMaster App konfigurieren
+## MeterMaster App verbinden
 
-Einstellungen → ioBroker → MeterMaster Adapter:
+In der App unter **Einstellungen → ioBroker → MeterMaster Adapter**:
 
 | Feld | Wert |
 |---|---|
-| Host | IP-Adresse des ioBroker (z.B. `192.168.178.113`) |
-| Port | `8089` |
-| Benutzer | wie oben konfiguriert |
-| Passwort | wie oben konfiguriert |
+| ioBroker aktivieren | ✅ |
+| IP / Hostname | IP-Adresse des ioBroker-Servers |
+| Adapter-Port | `8089` |
+| Benutzername | wie im Adapter konfiguriert |
+| Passwort | wie im Adapter konfiguriert |
+
+„Verbindung testen" → `MeterMaster-Adapter erreichbar ✓`
 
 ---
 
-## ESP32 Node-Verwaltung (ab Adapter v0.5.0)
+## ESP32 Node verbinden (optional)
 
-ESP32 Nodes (Firmware v1.5.0+) registrieren sich automatisch, sobald sie im gleichen Netzwerk laufen. Der Node schreibt seinen Heartbeat via ioBroker **simple-api** (Port 8087) — der Adapter erkennt dies automatisch und legt alle States an.
+Der [MeterMaster ESP32 Node](https://github.com/MPunktBPunkt/esp32.MeterMaster) verbindet sich automatisch. Voraussetzungen:
 
-**Voraussetzung:** ioBroker simple-api-Adapter muss auf Port 8087 laufen.
-
-**Angelegte States unter `metermaster.0.nodes.{MAC}`:**
-- `ip` – IP-Adresse des ESP32
-- `name` – Gerätename
-- `version` – Firmware-Version
-- `lastSeen` – letzter Heartbeat (ms)
-- `config` – Zähler-Konfiguration (Adapter schreibt, ESP32 liest)
-- `configAck` – Quittierung durch den ESP32
-
-**Zähler zuweisen:** Web-UI öffnen → Tab **📡 Nodes** → Dropdown → Speichern.  
-Der ESP32 übernimmt die neue Konfiguration beim nächsten Config-Poll (alle 15 Sekunden).
+- Im ESP32 Einstellungen-Tab: ioBroker-IP und **Adapter-Port `8089`** eintragen
+- Der Simple-API Adapter muss auf Port **8087** laufen (für Zählerwerte-Abruf)
+- Nach dem nächsten Heartbeat (max. 60 s) erscheint der Node im **Nodes-Tab** der Web-UI
 
 ---
 
-## Angelegte Datenpunkte (Ablesungen)
+## Update
 
+### Über die Web-UI (empfohlen)
 ```
-metermaster.0
-  info.connection        – Adapter verbunden
-  info.lastSync          – letzter Sync
-  info.readingsReceived  – Ablesungen gesamt
+http://{IP}:8089/ → Tab ⚙️ System → „Auf Updates prüfen" → „Update installieren"
+```
 
-  └── {Haus}
-       └── {Wohnung}
-            └── {Zähler}
-                 ├── readings.latest      (Zahl, ts = Ablesedatum)
-                 ├── readings.latestDate  (ISO-Datum)
-                 ├── readings.history     (JSON-Array)
-                 ├── name
-                 ├── unit
-                 └── typeName
+### Kommandozeile
+```bash
+iobroker upgrade metermaster https://github.com/MPunktBPunkt/iobroker.metermaster
+iobroker restart metermaster
+```
 
-  └── nodes
-       └── {MAC}
-            ├── ip / name / version / lastSeen / config / configAck
+### Manuell (Offline)
+```bash
+# Neue Dateien nach /opt/iobroker/node_modules/iobroker.metermaster/ kopieren
+cd /opt/iobroker/node_modules/iobroker.metermaster
+npm install
+iobroker restart metermaster
 ```
 
 ---
 
-## Aktualisierung
+## Deinstallation
 
 ```bash
-iobroker url https://github.com/MPunktBPunkt/iobroker.metermaster
-iobroker restart metermaster.0
+iobroker del metermaster
+# Optional: Verzeichnis entfernen
+rm -rf /opt/iobroker/node_modules/iobroker.metermaster
 ```
 
-Oder über die Web-UI: Tab **⚙️ System** → „Auf Updates prüfen" → „Update installieren".
+---
+
+## Fehlerbehebung
+
+**Adapter startet nicht**
+```bash
+# Log prüfen
+iobroker logs metermaster --lines 50
+# Adapter manuell starten
+node /opt/iobroker/node_modules/iobroker.metermaster/main.js
+```
+
+**Port belegt**
+```bash
+sudo lsof -i :8089
+# Oder anderen Port in der Adapter-Konfiguration wählen
+```
+
+**Web-UI nicht erreichbar**
+```bash
+# Adapter-Status prüfen
+iobroker status metermaster
+# Firewall prüfen
+sudo ufw status
+```
+
+**ESP32 erscheint nicht im Nodes-Tab**
+- Prüfen ob ESP32 und ioBroker im selben Netzwerk sind
+- Im ESP32 Einstellungen-Tab: Adapter-Port auf `8089` prüfen
+- Im Adapter-Log nach `[NODE] Heartbeat` suchen
