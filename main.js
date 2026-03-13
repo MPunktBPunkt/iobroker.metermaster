@@ -1590,8 +1590,8 @@ window.fetchNodes = async function fetchNodes() {
       html += td('<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select id="sel-'+esc(n.mac)+'" style="background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.82em;max-width:300px;min-width:180px;outline:none;">'+buildOptions(currentSid)+'</select><button  id="sbtn-'+esc(n.mac)+'" style="background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;">\uD83D\uDCBE Speichern</button><span id="smsg-'+esc(n.mac)+'"></span></div>'+ackHint);
       // LED-Spalte
       html += td('<div style="display:flex;flex-direction:column;gap:5px;align-items:center;">'
-        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:true})" title="LED ein" style="background:rgba(239,68,68,.2);color:#F87171;border:1px solid rgba(239,68,68,.4);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\uD83D\uDD34 Ein</button>'
-        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:false})" title="LED aus" style="background:var(--bg-surface2);color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\u26AB Aus</button>'
+        +'<button class="ledBtn" data-mac="'+esc(n.mac)+'" data-led="1" title="LED ein" style="background:rgba(239,68,68,.2);color:#F87171;border:1px solid rgba(239,68,68,.4);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\uD83D\uDD34 Ein</button>'
+        +'<button class="ledBtn" data-mac="'+esc(n.mac)+'" data-led="0" title="LED aus" style="background:var(--bg-surface2);color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\u26AB Aus</button>'
         +'<span id="ledmsg-'+esc(n.mac)+'" style="font-size:.75em;min-height:14px;"></span>'
         +'</div>');
       html += '</tr>';
@@ -1899,6 +1899,13 @@ function initTabs() {
   document.addEventListener('click', e => {
     const btn2 = e.target.closest('[id^="sbtn-"]');
     if (btn2) saveNodeConfig(btn2.id.slice(5));
+  });
+
+  // LED-Buttons via Event Delegation (kein onclick-Attribut)
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.ledBtn');
+    if (!btn) return;
+    window.sendNodeCmd(btn.dataset.mac, { ledOn: btn.dataset.led === '1' });
   });
 
   // Dropzone
