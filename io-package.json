@@ -1,8 +1,16 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.7.0",
+    "version": "0.7.2",
     "news": {
+      "0.7.2": {
+        "en": "Bugfix: Emoji Surrogate-Pairs in TYPE_ICONS and copyCmd JS strings (SyntaxError in browser)",
+        "de": "Bugfix: Emoji Surrogate-Pairs in TYPE_ICONS und copyCmd JS-Strings (SyntaxError im Browser)"
+      },
+      "0.7.1": {
+        "en": "Bugfix: Emoji Surrogate-Pairs in JS strings (SyntaxError); all onclick functions on window scope (ReferenceError)",
+        "de": "Bugfix: Emoji Surrogate-Pairs in JS-Strings (SyntaxError); alle onclick-Funktionen im window-Scope (ReferenceError)"
+      },
       "0.7.0": {
         "en": "ESP32 cmd commands (LED, meter switch), sendNodeCmd in Web-UI Nodes tab",
         "de": "ESP32 cmd-Befehle (LED, Zählerwechsel), sendNodeCmd im Web-UI Nodes-Tab"
