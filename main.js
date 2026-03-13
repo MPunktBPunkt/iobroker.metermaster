@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.7.1';
+const CURRENT_VERSION = '0.7.2';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -879,8 +879,8 @@ const LOGO_SVG = `<svg viewBox="0 0 108 108" xmlns="http://www.w3.org/2000/svg">
 
 // Typ-Icons nach typeName (spiegelt App-Icons wider)
 const TYPE_ICONS = {
-  Electricity:'⚡', Gas:'🔥', Water:'💧', HotWater:'🌡',
-  ColdWater:'❄', Heat:'🏠', Cooling:'🧊', Oil:'🛢', Other:'📟'
+  Electricity:'\u26A1', Gas:'\uD83D\uDD25', Water:'\uD83D\uDCA7', HotWater:'\uD83C\uDF21',
+  ColdWater:'\u2744', Heat:'\uD83C\uDFE0', Cooling:'\uD83E\uDDCA', Oil:'\uD83D\uDEE2', Other:'\uD83D\uDCDF'
 };
 
 const html = `<!DOCTYPE html>
@@ -1808,9 +1808,9 @@ window.copyCmd = function copyCmd(btn) {
   const cmd = btn.dataset.cmd;
   if (!cmd) return;
   navigator.clipboard.writeText(cmd).then(() => {
-    btn.textContent = '✓';
+    btn.textContent = '\u2713';
     btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1800);
+    setTimeout(() => { btn.textContent = '\uD83D\uDCCB'; btn.classList.remove('copied'); }, 1800);
   }).catch(() => {
     // Fallback für ältere Browser / HTTP-Kontext
     const ta = document.createElement('textarea');
@@ -1818,8 +1818,8 @@ window.copyCmd = function copyCmd(btn) {
     document.body.appendChild(ta); ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
-    btn.textContent = '✓'; btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1800);
+    btn.textContent = '\u2713'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '\uD83D\uDCCB'; btn.classList.remove('copied'); }, 1800);
   });
 }
 
