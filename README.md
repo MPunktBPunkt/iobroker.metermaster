@@ -220,7 +220,7 @@ iobroker restart metermaster
 
 ## Changelog
 
-### 0.7.0 (2026-03-13)
+### 0.7.3 (2026-03-13)
 - ESP32 cmd-Verarbeitung: LED und Zähler per Adapter fernsteuern
 - `POST /api/nodes/{MAC}/cmd` Endpunkt mit Basic Auth
 - `nodes.{MAC}.cmd` State – einmalige Auslieferung, danach automatisch gelöscht
