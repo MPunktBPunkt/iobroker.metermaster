@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const https  = require('https');
 const { exec } = require('child_process');
 
-const CURRENT_VERSION = '0.7.5';
+const CURRENT_VERSION = '0.7.6';
 const GITHUB_REPO     = 'MPunktBPunkt/iobroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/iobroker.metermaster';
 
@@ -1392,6 +1392,46 @@ input.search {
 <div id="ni" onclick="scrollLogBottom()">↓ Neue Einträge</div>
 
 <script>
+
+// ── Auth-System ─────────────────────────────────────────────────────────────
+let _authHeader = null;
+function getAuthHeader() { return _authHeader; }
+function setAuth(user, pass) {
+  _authHeader = 'Basic ' + btoa(unescape(encodeURIComponent(user + ':' + pass)));
+}
+function showLoginModal(msg) {
+  document.getElementById('login-msg').textContent = msg || '';
+  document.getElementById('login-overlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('login-user').focus(), 50);
+}
+function hideLoginModal() {
+  document.getElementById('login-overlay').style.display = 'none';
+}
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if (!user) { document.getElementById('login-msg').textContent = 'Benutzername fehlt'; return; }
+  setAuth(user, pass);
+  try {
+    const r = await fetch('/api/ping', { headers: { 'Authorization': _authHeader } });
+    if (r.ok) {
+      hideLoginModal();
+    } else {
+      _authHeader = null;
+      document.getElementById('login-msg').textContent = '❌ Falsche Zugangsdaten';
+    }
+  } catch(e) {
+    document.getElementById('login-msg').textContent = '❌ Verbindungsfehler';
+  }
+}
+async function authFetch(url, opts) {
+  if (!_authHeader) { showLoginModal(); return null; }
+  const headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': _authHeader }, opts.headers || {});
+  const r = await fetch(url, Object.assign({}, opts, { headers }));
+  if (r.status === 401) { _authHeader = null; showLoginModal('❌ Sitzung abgelaufen – bitte neu anmelden'); return null; }
+  return r;
+}
+
 const TYPE_ICONS = {Electricity:'\u26A1',Gas:'\uD83D\uDD25',Water:'\uD83D\uDCA7',HotWater:'\uD83C\uDF21',ColdWater:'\u2744',Heat:'\uD83C\uDFE0',Cooling:'\uD83E\uDDCA',Oil:'\uD83D\uDEE2',Other:'\uD83D\uDCDF'};
 
 // \u2500\u2500 Tab-Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -1550,8 +1590,8 @@ window.fetchNodes = async function fetchNodes() {
       html += td('<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select id="sel-'+esc(n.mac)+'" style="background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.82em;max-width:300px;min-width:180px;outline:none;">'+buildOptions(currentSid)+'</select><button  id="sbtn-'+esc(n.mac)+'" style="background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;">\uD83D\uDCBE Speichern</button><span id="smsg-'+esc(n.mac)+'"></span></div>'+ackHint);
       // LED-Spalte
       html += td('<div style="display:flex;flex-direction:column;gap:5px;align-items:center;">'
-        +'<button class="ledBtn" data-mac="'+esc(n.mac)+'" data-led="1" title="LED ein" style="background:rgba(239,68,68,.2);color:#F87171;border:1px solid rgba(239,68,68,.4);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\uD83D\uDD34 Ein</button>'
-        +'<button class="ledBtn" data-mac="'+esc(n.mac)+'" data-led="0" title="LED aus" style="background:var(--bg-surface2);color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\u26AB Aus</button>'
+        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:true})" title="LED ein" style="background:rgba(239,68,68,.2);color:#F87171;border:1px solid rgba(239,68,68,.4);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\uD83D\uDD34 Ein</button>'
+        +'<button onclick="sendNodeCmd(\''+esc(n.mac)+'\',{ledOn:false})" title="LED aus" style="background:var(--bg-surface2);color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em;white-space:nowrap;">\u26AB Aus</button>'
         +'<span id="ledmsg-'+esc(n.mac)+'" style="font-size:.75em;min-height:14px;"></span>'
         +'</div>');
       html += '</tr>';
@@ -1572,10 +1612,11 @@ window.saveNodeConfig = async function saveNodeConfig(mac) {
   const meter   = discoverCache.find(m => m.stateId === stateId);
   btn.disabled = true; msg.textContent = '';
   try {
-    const r = await fetch('/api/nodes/'+encodeURIComponent(mac)+'/config', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+    const r = await authFetch('/api/nodes/'+encodeURIComponent(mac)+'/config', {
+      method: 'POST',
       body: JSON.stringify({ sid: stateId, label: meter ? meter.label : '', unit: meter ? meter.unit : '' })
     });
+    if (!r) { btn.disabled = false; return; }
     const d = await r.json();
     if (d.ok) {
       msg.innerHTML = '<span style="color:var(--accent);font-size:.82em;">\u2713 Gespeichert</span>';
@@ -1645,10 +1686,11 @@ window.doImport = async function doImport() {
   const btn   = document.getElementById('imp-btn');
   btn.disabled = true; btn.textContent = '\u23F3 Importiere\u2026';
   try {
-    const r = await fetch('/api/import', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+    const r = await authFetch('/api/import', {
+      method: 'POST',
       body: JSON.stringify({...importData, HouseName: house})
     });
+    if (!r) { btn.disabled = false; btn.textContent = '⬆ Importieren'; return; }
     const d = await r.json();
     if (d.ok) { showResult('ok',   '\u2705 '+d.summary); fetchData(); fetchStats(); }
     else       { showResult('warn','\u26A0 '+d.summary+(d.errors.length ? '<br>'+d.errors.slice(0,5).map(esc).join('<br>') : '')); }
@@ -1704,7 +1746,7 @@ async function fetchLogs() {
     const atB = c.scrollHeight - c.scrollTop - c.clientHeight < 80;
     if (d.entries.length > 0) {
       document.getElementById('log-empty').style.display = 'none';
-      d.entries.forEach(e => { const el = renderLog(e,true); if(el) c.appendChild(el); displayed.push(e); });
+      d.entries.forEach(e => { const el = renderLog(e,true); if(el) c.insertBefore(el, c.firstChild); displayed.unshift(e); });
       newestTs = d.newest;
       const rows = c.querySelectorAll('.le');
       if (rows.length > 1000) for (let i=0;i<rows.length-1000;i++) rows[i].remove();
@@ -1859,15 +1901,6 @@ function initTabs() {
     if (btn2) saveNodeConfig(btn2.id.slice(5));
   });
 
-  // LED-Buttons via Event Delegation (data-mac + data-led, kein onclick)
-  document.addEventListener('click', e => {
-    const btn3 = e.target.closest('.ledBtn');
-    if (!btn3) return;
-    const mac = btn3.dataset.mac;
-    const led = btn3.dataset.led === '1';
-    sendNodeCmd(mac, { ledOn: led });
-  });
-
   // Dropzone
   dz = document.getElementById('drop-zone');
   if (dz) {
@@ -1895,7 +1928,7 @@ async function init() {
     const d = await fetch('/api/logs?limit=500').then(r => r.json());
     if (d.entries.length > 0) {
       document.getElementById('log-empty').style.display = 'none';
-      d.entries.forEach(e => { const el = renderLog(e,false); if(el) lc().appendChild(el); });
+      d.entries.slice().reverse().forEach(e => { const el = renderLog(e,false); if(el) lc().appendChild(el); });
       displayed = d.entries; newestTs = d.newest;
     }
   } catch {}
@@ -1905,6 +1938,30 @@ async function init() {
 }
 init();
 </script>
+<!-- ══ LOGIN-MODAL ═══════════════════════════════════════════════════════════ -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,11,26,.85);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-surface);border:1px solid var(--border-light);border-radius:16px;padding:32px 36px;min-width:320px;max-width:420px;width:90%;">
+    <div style="font-size:1.1em;font-weight:700;color:var(--secondary);margin-bottom:6px;">🔑 Anmelden</div>
+    <div style="font-size:.82em;color:var(--text-dim);margin-bottom:20px;">Zugangsdaten für schreibende Aktionen (Zähler zuweisen, Import).</div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:.82em;color:var(--text-dim);display:block;margin-bottom:4px;">Benutzername</label>
+      <input id="login-user" type="text" value="metermaster" style="width:100%;background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:8px 12px;border-radius:8px;font-size:.9em;outline:none;" onkeydown="if(event.key===\'Enter\')document.getElementById(\'login-pass\').focus()">
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="font-size:.82em;color:var(--text-dim);display:block;margin-bottom:4px;">Passwort</label>
+      <div style="position:relative;">
+        <input id="login-pass" type="password" style="width:100%;background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:8px 36px 8px 12px;border-radius:8px;font-size:.9em;outline:none;" onkeydown="if(event.key===\'Enter\')doLogin()">
+        <button onclick="const i=document.getElementById(\'login-pass\');i.type=i.type===\'password\'?\'text\':\'password\';" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-dim);">👁</button>
+      </div>
+    </div>
+    <div id="login-msg" style="font-size:.82em;color:var(--danger);min-height:18px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="doLogin()" style="flex:1;background:var(--primary);color:#fff;border:none;padding:9px;border-radius:9px;cursor:pointer;font-size:.9em;font-weight:600;">✓ Anmelden</button>
+      <button onclick="hideLoginModal()" style="background:transparent;border:1px solid var(--border-light);color:var(--text-dim);padding:9px 16px;border-radius:9px;cursor:pointer;font-size:.9em;">✕</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>`;
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

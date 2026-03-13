@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.7.5",
+    "version": "0.7.6",
     "news": {
       "0.7.5": {
         "en": "Bugfix: Emoji Surrogate-Pairs in TYPE_ICONS and copyCmd JS strings (SyntaxError in browser)",
@@ -34,6 +34,10 @@
       "0.1.0": {
         "en": "Initial release: HTTP receiver, Web-UI, log viewer, app import",
         "de": "Erstveröffentlichung: HTTP-Empfänger, Web-UI, Log-Viewer, App-Import"
+      },
+      "0.7.6": {
+        "en": "Login modal for auth (no more browser prompt), newest logs on top",
+        "de": "Login-Modal fuer Auth (kein Browser-Prompt mehr), neueste Logs oben"
       }
     },
     "title": "MeterMaster",
