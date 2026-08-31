@@ -263,6 +263,10 @@ iobroker restart metermaster.0
 
 ## Changelog
 
+
+### **WORK IN PROGRESS**
+- (ioBroker-Bot) Adapter requires admin >= 7.8.23 now.
+
 ### 0.9.4
 - All adapter log messages and API JSON error responses in English
 - State common names and roles corrected (readings channel, date/text/json roles, info.firmware for nodes)
