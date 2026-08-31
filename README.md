@@ -307,6 +307,8 @@ See [io-package.json](io-package.json) `common.news` for full history. Older ent
 
 ---
 
+[Older changelogs can be found there](CHANGELOG_OLD.md)
+
 ## License
 
 MIT License
