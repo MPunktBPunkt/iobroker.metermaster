@@ -1057,7 +1057,14 @@ nav {
   margin-bottom: 8px; padding: 4px 10px;
   border-left: 3px solid var(--primary-deep); background: var(--bg-surface);
   border-radius: 0 6px 6px 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
+.print-scope-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: .78em;
+  white-space: nowrap;
+}
+.print-scope-btn:hover { color: var(--secondary); border-color: var(--secondary); }
 .meters-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(270px,1fr)); gap: 12px; margin-left: 20px; }
 
 /* Zählerkarte – wie App-Karte */
@@ -1568,6 +1575,7 @@ input.search {
     <div class="chart-wrap-box"><canvas id="chart-line"></canvas></div>
     <div class="chart-wrap-box chart-wrap-sm"><canvas id="chart-bar"></canvas></div>
     <div class="chart-modal-foot">
+      <button class="ghost" id="chart-print-btn" title="Print">🖨 Print</button>
       <button class="ghost" id="chart-csv-btn">⬇ CSV</button>
     </div>
   </div>
@@ -1650,7 +1658,10 @@ const I18N = {
     no_data:'Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App oder lade ein Backup hoch.',
     no_nodes:'Noch keine ESP32 Nodes registriert.<br>Wenn ein MeterMaster Node startet, erscheint er automatisch hier.',
     history:'Verlauf', history_edit:'Wert bearbeiten', history_edit_prompt:'Neuer Zählerstand:', history_saved:'Gespeichert',
-    since_last:'seit letzter Ablesung', days:'Tage', chart_btn:'Chart', csv_btn:'CSV',
+    since_last:'seit letzter Ablesung', days:'Tage', chart_btn:'Chart', csv_btn:'CSV', print_btn:'Drucken',
+    print_chart:'Chart drucken', print_apartment:'Wohnung drucken', print_house:'Haus drucken',
+    print_latest_title:'Aktuelle Zählerstände', print_meter:'Zähler', print_value:'Stand',
+    print_unit:'Einheit', print_date:'Datum', print_generated:'Erstellt',
     chart_readings:'Z\u00E4hlerstand', chart_monthly:'Monatsverbrauch', chart_period_all:'Alles',
     chart_yearly:'Pro Jahr', chart_yearly_proj:'Hochrechnung', chart_per_year:'/Jahr',
     chart_yearly_hint:'basierend auf {days} {daysLabel} ({delta} {unit})',
@@ -1698,7 +1709,10 @@ const I18N = {
     no_data:'No readings received yet.<br>Start a sync in the MeterMaster app or upload a backup.',
     no_nodes:'No ESP32 nodes registered yet.<br>When a MeterMaster node starts and sends its heartbeat, it will appear here automatically.',
     history:'History', history_edit:'Edit value', history_edit_prompt:'New meter reading:', history_saved:'Saved',
-    since_last:'since last reading', days:'days', chart_btn:'Chart', csv_btn:'CSV',
+    since_last:'since last reading', days:'days', chart_btn:'Chart', csv_btn:'CSV', print_btn:'Print',
+    print_chart:'Print chart', print_apartment:'Print apartment', print_house:'Print house',
+    print_latest_title:'Latest meter readings', print_meter:'Meter', print_value:'Reading',
+    print_unit:'Unit', print_date:'Date', print_generated:'Generated',
     chart_readings:'Meter reading', chart_monthly:'Monthly consumption', chart_period_all:'All',
     chart_yearly:'Per year', chart_yearly_proj:'Projected', chart_per_year:'/yr',
     chart_yearly_hint:'based on {days} {daysLabel} ({delta} {unit})',
@@ -1824,6 +1838,11 @@ function applyI18n() {
   if (crAll) crAll.textContent = t('chart_period_all');
   const csvBtn = document.getElementById('chart-csv-btn');
   if (csvBtn) csvBtn.textContent = '\u2B07 ' + t('csv_btn');
+  const printBtn = document.getElementById('chart-print-btn');
+  if (printBtn) {
+    printBtn.textContent = '\uD83D\uDDA8 ' + t('print_btn');
+    printBtn.title = t('print_chart');
+  }
   const cc = document.getElementById('chart-close');
   if (cc) cc.title = t('chart_close');
   const yearlyBtn = document.getElementById('chart-yearly-toggle');
@@ -2096,6 +2115,88 @@ function closeChartModal() {
   chartCtxIdx = -1;
 }
 
+function openPrintWindow(title, bodyHtml) {
+  const w = window.open('', '_blank', 'noopener,noreferrer');
+  if (!w) {
+    window.alert(t('error'));
+    return;
+  }
+  const generated = new Date().toLocaleString(localeTag(), { hour12: false });
+  w.document.write(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title>'+
+    '<style>'+
+    'body{font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#111;margin:24px;}'+
+    'h1{font-size:1.25rem;margin:0 0 4px}h2{font-size:1rem;color:#444;font-weight:600;margin:0 0 16px}'+
+    '.meta{font-size:.85rem;color:#666;margin-bottom:18px}'+
+    'table{width:100%;border-collapse:collapse;font-size:.95rem}'+
+    'th,td{border-bottom:1px solid #ddd;padding:8px 6px;text-align:left}'+
+    'th{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:#555}'+
+    'td.num{text-align:right;font-variant-numeric:tabular-nums}'+
+    'img{max-width:100%;height:auto;margin:12px 0;border:1px solid #eee}'+
+    '@media print{body{margin:12mm}button{display:none}}'+
+    '</style></head><body>'+
+    '<h1>'+esc(title)+'</h1>'+
+    '<div class="meta">'+esc(t('print_generated'))+': '+esc(generated)+'</div>'+
+    bodyHtml+
+    '<script>window.onload=function(){window.focus();window.print();}<\\/script>'+
+    '</body></html>'
+  );
+  w.document.close();
+}
+
+window.printChartView = function printChartView() {
+  if (chartCtxIdx < 0) return;
+  const m = dataCacheList[chartCtxIdx];
+  if (!m) return;
+  const line = document.getElementById('chart-line');
+  const bar  = document.getElementById('chart-bar');
+  const kpi  = document.getElementById('chart-kpi');
+  const kpiY = document.getElementById('chart-kpi-yearly');
+  let html = '<h2>'+esc(m.house + ' \u203A ' + m.apartment)+
+    (m.typeName ? ' \u00B7 ' + esc(m.typeName) : '')+'</h2>';
+  if (kpi && kpi.style.display !== 'none' && kpi.textContent.trim()) {
+    html += '<p>'+esc(kpi.textContent.trim())+'</p>';
+  }
+  if (kpiY && kpiY.style.display !== 'none' && kpiY.textContent.trim()) {
+    html += '<p>'+esc(kpiY.textContent.trim())+'</p>';
+  }
+  if (line) html += '<img alt="'+esc(t('chart_readings'))+'" src="'+line.toDataURL('image/png')+'">';
+  if (bar && bar.offsetParent !== null) {
+    html += '<img alt="'+esc(t('chart_monthly'))+'" src="'+bar.toDataURL('image/png')+'">';
+  }
+  openPrintWindow(m.meter + ' \u2013 ' + t('print_chart'), html);
+};
+
+window.printScopeReadings = function printScopeReadings(house, apartment) {
+  const rows = dataCacheList.filter(m =>
+    m.house === house && (!apartment || m.apartment === apartment)
+  );
+  if (!rows.length) return;
+  const title = apartment
+    ? (house + ' \u203A ' + apartment)
+    : house;
+  let html = '<h2>'+esc(t('print_latest_title'))+'</h2>';
+  html += '<table><thead><tr>'+
+    (apartment ? '' : '<th>'+esc(t('prev_apts'))+'</th>')+
+    '<th>'+esc(t('print_meter'))+'</th>'+
+    '<th>'+esc(t('print_value'))+'</th>'+
+    '<th>'+esc(t('print_unit'))+'</th>'+
+    '<th>'+esc(t('print_date'))+'</th>'+
+    '</tr></thead><tbody>';
+  for (const m of rows) {
+    const dt = m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '\u2013';
+    html += '<tr>'+
+      (apartment ? '' : '<td>'+esc(m.apartment)+'</td>')+
+      '<td>'+esc(m.meter)+(m.typeName ? ' <span style="color:#777">('+esc(m.typeName)+')</span>' : '')+'</td>'+
+      '<td class="num">'+(m.latest !== undefined && m.latest !== null ? esc(String(m.latest)) : '\u2013')+'</td>'+
+      '<td>'+esc(m.unit || '')+'</td>'+
+      '<td>'+esc(dt)+'</td>'+
+      '</tr>';
+  }
+  html += '</tbody></table>';
+  openPrintWindow(title, html);
+};
+
 // \u2500\u2500 Tab-Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 window.showTab = function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -2162,9 +2263,11 @@ async function fetchData() {
     let html = '';
     let idx = 0;
     for (const [house, apts] of Object.entries(d.data)) {
-      html += '<div class="house-block"><div class="house-title">\uD83C\uDFE0 '+esc(house)+'</div>';
+      html += '<div class="house-block"><div class="house-title"><span>\uD83C\uDFE0 '+esc(house)+'</span>'+
+        '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" title="'+esc(t('print_house'))+'">\uD83D\uDDA8</button></div>';
       for (const [apt, meters] of Object.entries(apts)) {
-        html += '<div class="apt-block"><div class="apt-title">\uD83C\uDFD8 '+esc(apt)+'</div><div class="meters-grid">';
+        html += '<div class="apt-block"><div class="apt-title"><span>\uD83C\uDFD8 '+esc(apt)+'</span>'+
+          '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" data-print-apt="'+esc(apt)+'" title="'+esc(t('print_apartment'))+'">\uD83D\uDDA8</button></div><div class="meters-grid">';
         for (const [key, m] of Object.entries(meters)) {
           const cacheIdx = idx++;
           dataCacheList.push({ house, apartment: apt, meter: key, unit: m.unit, typeName: m.typeName, latest: m.latest, latestDate: m.latestDate, history: m.history || [] });
@@ -2611,6 +2714,12 @@ function initTabs() {
     if (e.target.closest('.chart-close')) { closeChartModal(); return; }
     if (e.target.id === 'chart-overlay') { closeChartModal(); return; }
     if (e.target.closest('#chart-csv-btn')) { if (chartCtxIdx >= 0) exportMeterCsv(chartCtxIdx); return; }
+    if (e.target.closest('#chart-print-btn')) { printChartView(); return; }
+    const scopeBtn = e.target.closest('.print-scope-btn');
+    if (scopeBtn) {
+      printScopeReadings(scopeBtn.dataset.printHouse, scopeBtn.dataset.printApt || null);
+      return;
+    }
     const rangeBtn = e.target.closest('.chart-range[data-months]');
     if (rangeBtn) {
       chartRangeMonths = parseInt(rangeBtn.dataset.months, 10) || 0;
