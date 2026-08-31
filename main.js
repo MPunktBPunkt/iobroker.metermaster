@@ -4,7 +4,7 @@ const utils  = require('@iobroker/adapter-core');
 const http   = require('node:http');
 const crypto = require('node:crypto');
 const https  = require('node:https');
-const CURRENT_VERSION = '0.9.5';
+const CURRENT_VERSION = '0.9.6';
 const GITHUB_REPO     = 'MPunktBPunkt/ioBroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/ioBroker.metermaster';
 
@@ -638,7 +638,11 @@ async function migrateStateRoles() {
 
 // ─── API Endpunkte ────────────────────────────────────────────────────────────
 function serveDataJson(res) {
-    sendJson(res, 200, { data: receivedData, receivedTotal: readingsReceived });
+    sendJson(res, 200, {
+        data: receivedData,
+        receivedTotal: readingsReceived,
+        namespace: adapter.namespace,
+    });
 }
 function serveLogsJson(req, res) {
     const u        = new URL(req.url, 'http://localhost');
@@ -1065,6 +1069,31 @@ nav {
   white-space: nowrap;
 }
 .print-scope-btn:hover { color: var(--secondary); border-color: var(--secondary); }
+.mc-nodes {
+  margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+.mc-nodes-label {
+  font-size: .72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px;
+  margin-right: 2px;
+}
+.node-chip {
+  border: 1px solid var(--border); background: var(--bg-surface2); color: var(--text-dim);
+  border-radius: 999px; padding: 3px 10px; font-size: .75em; font-weight: 600;
+  cursor: pointer; line-height: 1.3; display: inline-flex; align-items: center; gap: 5px;
+}
+.node-chip:hover { border-color: var(--secondary); color: var(--secondary); }
+.node-chip.active {
+  background: rgba(76,175,80,.18); color: #A5D6A7; border-color: rgba(76,175,80,.45);
+}
+.node-chip.offline { opacity: .7; }
+.node-chip .dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); display: inline-block;
+}
+.node-chip.active .dot { background: var(--accent); box-shadow: 0 0 4px var(--accent); }
+.meter-card.has-node {
+  border-color: rgba(76,175,80,.35);
+  box-shadow: inset 0 0 0 1px rgba(76,175,80,.12);
+}
 .meters-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(270px,1fr)); gap: 12px; margin-left: 20px; }
 
 /* Zählerkarte – wie App-Karte */
@@ -1662,6 +1691,8 @@ const I18N = {
     print_chart:'Chart drucken', print_apartment:'Wohnung drucken', print_house:'Haus drucken',
     print_latest_title:'Aktuelle Zählerstände', print_meter:'Zähler', print_value:'Stand',
     print_unit:'Einheit', print_date:'Datum', print_generated:'Erstellt',
+    node_label:'Node', node_assign:'Diesen Zähler auf dem Node anzeigen',
+    node_unassign:'Anzeige auf diesem Node beenden', node_none:'Keine Nodes registriert',
     chart_readings:'Z\u00E4hlerstand', chart_monthly:'Monatsverbrauch', chart_period_all:'Alles',
     chart_yearly:'Pro Jahr', chart_yearly_proj:'Hochrechnung', chart_per_year:'/Jahr',
     chart_yearly_hint:'basierend auf {days} {daysLabel} ({delta} {unit})',
@@ -1713,6 +1744,8 @@ const I18N = {
     print_chart:'Print chart', print_apartment:'Print apartment', print_house:'Print house',
     print_latest_title:'Latest meter readings', print_meter:'Meter', print_value:'Reading',
     print_unit:'Unit', print_date:'Date', print_generated:'Generated',
+    node_label:'Node', node_assign:'Show this meter on the node',
+    node_unassign:'Stop showing on this node', node_none:'No nodes registered',
     chart_readings:'Meter reading', chart_monthly:'Monthly consumption', chart_period_all:'All',
     chart_yearly:'Per year', chart_yearly_proj:'Projected', chart_per_year:'/yr',
     chart_yearly_hint:'based on {days} {daysLabel} ({delta} {unit})',
@@ -2251,9 +2284,38 @@ async function fetchSysStats() {
 }
 
 // \u2500\u2500 DATEN-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+let nodesCacheForData = [];
+let dataNamespace = '';
+
+function meterStateId(house, apt, meter) {
+  return dataNamespace ? (dataNamespace + '.' + house + '.' + apt + '.' + meter + '.readings.latest') : '';
+}
+
+function nodeSid(n) {
+  try { return JSON.parse(n.config || '{}').sid || ''; } catch { return ''; }
+}
+
+function buildNodeChipsHtml(stateId, unit, label) {
+  if (!nodesCacheForData.length) return '';
+  const chips = nodesCacheForData.map(n => {
+    const sid = nodeSid(n);
+    const active = sid && stateId && sid === stateId;
+    const name = n.name || n.mac;
+    const cls = 'node-chip' + (active ? ' active' : '') + (n.online ? '' : ' offline');
+    const title = active ? t('node_unassign') : t('node_assign');
+    return '<button type="button" class="'+cls+'" data-mac="'+esc(n.mac)+'" data-sid="'+esc(stateId)+'" data-unit="'+esc(unit||'')+'" data-label="'+esc(label||'')+'" data-active="'+(active?'1':'0')+'" title="'+esc(title)+'"><span class="dot"></span>'+esc(name)+'</button>';
+  }).join('');
+  return '<div class="mc-nodes"><span class="mc-nodes-label">'+esc(t('node_label'))+'</span>'+chips+'</div>';
+}
+
 async function fetchData() {
   try {
-    const d   = await fetch('/api/data').then(r => r.json());
+    const [d, nodes] = await Promise.all([
+      fetch('/api/data').then(r => r.json()),
+      fetch('/api/nodes').then(r => r.json()).catch(() => [])
+    ]);
+    nodesCacheForData = Array.isArray(nodes) ? nodes : [];
+    dataNamespace = d.namespace || '';
     const con = document.getElementById('data-container');
     dataCacheList = [];
     if (!d.data || !Object.keys(d.data).length) {
@@ -2275,6 +2337,8 @@ async function fetchData() {
           const histId = 'h-'+CSS.escape(house+apt+key);
           const hist   = m.history || [];
           const delta  = calcDelta(hist);
+          const sid    = meterStateId(house, apt, key);
+          const assignedHere = nodesCacheForData.some(n => nodeSid(n) === sid);
           const rows   = hist.slice().reverse().map(h =>
             '<div class="hist-row">'+
               '<span>'+esc(fmtDt(h.ts))+'</span>'+
@@ -2293,8 +2357,9 @@ async function fetchData() {
                 '<button class="mc-csv-btn" data-idx="'+cacheIdx+'" title="'+esc(t('csv_btn'))+'">\u2B07 '+esc(t('csv_btn'))+'</button>'+
               '</div>'
             : '';
+          const nodesHtml = buildNodeChipsHtml(sid, m.unit, key);
           html +=
-            '<div class="meter-card">'+
+            '<div class="meter-card'+(assignedHere ? ' has-node' : '')+'">'+
               '<div class="mc-head">'+
                 '<div class="mc-name">'+icon+' '+esc(key)+'</div>'+
                 '<div class="mc-badge">'+esc(m.typeName||'?')+'</div>'+
@@ -2310,6 +2375,7 @@ async function fetchData() {
                   '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
                 : '')+
               actionsHtml+
+              nodesHtml+
             '</div>';
         }
         html += '</div></div>';
@@ -2320,6 +2386,32 @@ async function fetchData() {
   } catch(e) {
     document.getElementById('data-container').innerHTML =
       '<div class="empty-state"><div class="ico">\u26A0</div><p>'+t('error')+': '+esc(e.message)+'</p></div>';
+  }
+}
+
+window.toggleNodeAssign = async function toggleNodeAssign(mac, sid, label, unit, currentlyActive) {
+  const nextSid = currentlyActive ? '' : sid;
+  try {
+    const r = await authFetch('/api/nodes/'+encodeURIComponent(mac)+'/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        sid: nextSid,
+        label: nextSid ? (label || '') : '',
+        unit: nextSid ? (unit || '') : ''
+      })
+    });
+    if (!r) return;
+    const d = await r.json();
+    if (!d.ok) {
+      window.alert(t('error') + ': ' + (d.error || r.status));
+      return;
+    }
+    await fetchData();
+    if (typeof fetchNodes === 'function' && document.querySelector('.nav-item.active[data-tab="nodes"]')) {
+      fetchNodes();
+    }
+  } catch (e) {
+    window.alert(t('error') + ': ' + e.message);
   }
 }
 
@@ -2703,6 +2795,19 @@ function initTabs() {
     const idx = parseInt(editBtn.dataset.idx, 10);
     const ts  = parseInt(editBtn.dataset.ts, 10);
     editHistoryValue(idx, ts);
+  });
+
+  // Node chips on meter cards: assign / unassign
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('.node-chip');
+    if (!chip) return;
+    toggleNodeAssign(
+      chip.dataset.mac,
+      chip.dataset.sid,
+      chip.dataset.label || '',
+      chip.dataset.unit || '',
+      chip.dataset.active === '1'
+    );
   });
 
   // Chart + CSV + Chart-Modal via Event Delegation

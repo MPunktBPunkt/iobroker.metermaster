@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.9.5",
+    "version": "0.9.6",
     "news": {
+      "0.9.6": {
+        "en": "Assign display nodes via chips on meter cards in the Data tab",
+        "de": "Anzeige-Nodes per Chips auf den Zähler-Kacheln im Daten-Tab zuweisen",
+        "ru": "Assign nodes via chips on meter cards",
+        "pt": "Assign nodes via chips on meter cards",
+        "nl": "Nodes toewijzen via chips op meterkarten",
+        "fr": "Assigner des nodes via des chips sur les cartes compteur",
+        "it": "Assegna node tramite chip sulle card contatore",
+        "es": "Asignar nodes mediante chips en las tarjetas de contador",
+        "pl": "Przypisywanie node przez chipy na kartach liczników",
+        "uk": "Призначення node через чіпи на картках лічильників",
+        "zh-cn": "在数据页计量表卡片上通过芯片分配显示节点"
+      },
       "0.9.5": {
         "en": "Correct history on re-sync; edit values in Web UI; print chart and apartment/house latest readings",
         "de": "Historie bei erneutem Sync korrigieren; Werte in der Web-UI bearbeiten; Chart sowie Wohnungs-/Haus-Stände drucken",
