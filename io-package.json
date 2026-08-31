@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.9.4",
+    "version": "0.9.5",
     "news": {
+      "0.9.5": {
+        "en": "Correct existing history entries on re-sync (same timestamp); edit values in Web UI",
+        "de": "Vorhandene Historie-Einträge bei erneutem Sync korrigieren (gleicher Zeitstempel); Werte in der Web-UI bearbeiten",
+        "ru": "Correction of history entries on re-sync; Web UI edit",
+        "pt": "Correct history on re-sync; Web UI edit",
+        "nl": "History corrigeren bij re-sync; Web UI edit",
+        "fr": "Corriger l'historique au re-sync; édition Web UI",
+        "it": "Correggi cronologia al re-sync; modifica Web UI",
+        "es": "Corregir historial en re-sync; edición Web UI",
+        "pl": "Korekta historii przy re-sync; edycja Web UI",
+        "uk": "Корекція історії при re-sync; редагування Web UI",
+        "zh-cn": "重新同步时更正历史记录；Web UI 编辑"
+      },
       "0.9.4": {
         "en": "Review fixes: English logs/states/API errors, Web UI i18n, config validation, removed /api/update",
         "de": "Review-Fixes: Englische Logs/States/API-Fehler, Web-UI-i18n, Config-Validierung, /api/update entfernt",

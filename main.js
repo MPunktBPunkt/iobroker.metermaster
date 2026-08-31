@@ -4,7 +4,7 @@ const utils  = require('@iobroker/adapter-core');
 const http   = require('node:http');
 const crypto = require('node:crypto');
 const https  = require('node:https');
-const CURRENT_VERSION = '0.9.4';
+const CURRENT_VERSION = '0.9.5';
 const GITHUB_REPO     = 'MPunktBPunkt/ioBroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/ioBroker.metermaster';
 
@@ -30,16 +30,21 @@ function cacheReading(house, apt, meter, value, unit, typeName, readingDate, ts)
     if (!receivedData[house][apt][meter])   receivedData[house][apt][meter] = { unit, typeName, history: [] };
 
     const entry = receivedData[house][apt][meter];
-    entry.latest     = value;
-    entry.latestDate = readingDate;
     entry.unit       = unit;
     entry.typeName   = typeName;
 
-    // Nur in Cache-History hinzufügen wenn noch nicht vorhanden
-    if (!entry.history.some(h => h.ts === ts)) {
+    const histIdx = entry.history.findIndex(h => h.ts === ts);
+    if (histIdx >= 0) {
+        entry.history[histIdx] = { value, readingDate, ts };
+    } else {
         entry.history.push({ value, readingDate, ts });
         entry.history.sort((a, b) => a.ts - b.ts);
     }
+
+    // latest = chronologisch neuester Eintrag (Korrektur alter Werte ändert latest nicht)
+    const newest = entry.history[entry.history.length - 1];
+    entry.latest     = newest.value;
+    entry.latestDate = newest.readingDate;
 }
 
 // ─── Log-System ───────────────────────────────────────────────────────────────
@@ -249,7 +254,7 @@ function startHttpServer() {
 
     server = http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin',  '*');
-        res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, PUT, GET, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
@@ -315,7 +320,9 @@ function startHttpServer() {
         }
 
         if      (req.method === 'GET'  && url === '/api/ping')     { handlePing(res, clientIp); }
-        else if (req.method === 'POST' && url === '/api/reading')  { readBody(req, b => handleReading(b, res, clientIp)); }
+        else if ((req.method === 'POST' || req.method === 'PUT') && url === '/api/reading') {
+            readBody(req, b => handleReading(b, res, clientIp));
+        }
         else if (req.method === 'POST' && url === '/api/readings') { readBody(req, b => handleReadings(b, res, clientIp)); }
         else if (req.method === 'POST' && url === '/api/import')   { readBody(req, b => handleImport(b, res, clientIp)); }
         else {
@@ -377,8 +384,8 @@ async function handleReading(body, res, clientIp) {
     log(LVL.INFO, CAT.SYNC, `Reading received`,
         `${data.house}/${data.apartment}/${data.meter} = ${data.value} ${data.unit||''} (${data.readingDate})`);
     try {
-        const path = await storeReading(data);
-        sendJson(res, 200, { ok: true, path });
+        const result = await storeReading(data);
+        sendJson(res, 200, { ok: true, path: result.path, history: result.history });
     } catch (e) {
         log(LVL.ERROR, CAT.SYNC, `Storage error`, e.message);
         sendJson(res, 500, { error: e.message });
@@ -504,25 +511,28 @@ async function storeReading(data) {
 
     if (dpNew) log(LVL.INFO, CAT.DATAPOINT, `Data points created`, `${base}.readings.{latest,latestDate,history} + name/unit/typeName`);
 
-    await adapter.setStateAsync(`${base}.readings.latest`,     { val: value,              ts, ack: true });
-    await adapter.setStateAsync(`${base}.readings.latestDate`, { val: data.readingDate,   ts, ack: true });
-    await adapter.setStateAsync(`${base}.name`,                { val: data.meter,         ts, ack: true });
-    await adapter.setStateAsync(`${base}.unit`,                { val: data.unit||'',      ts, ack: true });
-    await adapter.setStateAsync(`${base}.typeName`,            { val: data.typeName||'',  ts, ack: true });
-
-    log(LVL.DEBUG, CAT.SYNC, `State written`, `metermaster.0.${base} = ${value} ${data.unit||''} | ${data.readingDate}`);
+    await adapter.setStateAsync(`${base}.name`,     { val: data.meter,        ts, ack: true });
+    await adapter.setStateAsync(`${base}.unit`,     { val: data.unit||'',     ts, ack: true });
+    await adapter.setStateAsync(`${base}.typeName`, { val: data.typeName||'', ts, ack: true });
 
     const histResult = await updateHistory(base, { value, unit: data.unit||'', readingDate: data.readingDate, ts });
     if (histResult === 'added')     log(LVL.DEBUG, CAT.HISTORY, `History +1`, `${base} @ ${data.readingDate}`);
+    if (histResult === 'updated')   log(LVL.INFO,  CAT.HISTORY, `History updated`, `${base} @ ${data.readingDate} → ${value}`);
     if (histResult === 'duplicate') log(LVL.DEBUG, CAT.HISTORY, `Duplicate`,  `${base} @ ${data.readingDate}`);
 
-    // In-Memory-Cache aktualisieren
+    // Cache + latest anhand chronologisch neuestem History-Eintrag
     cacheReading(house, apt, meter, value, data.unit||'', data.typeName||'', data.readingDate, ts);
+    const cached = receivedData[house][apt][meter];
+    const latestTs = new Date(cached.latestDate).getTime();
+    await adapter.setStateAsync(`${base}.readings.latest`,     { val: cached.latest,     ts: latestTs, ack: true });
+    await adapter.setStateAsync(`${base}.readings.latestDate`, { val: cached.latestDate, ts: latestTs, ack: true });
+
+    log(LVL.DEBUG, CAT.SYNC, `State written`, `metermaster.0.${base} = ${value} ${data.unit||''} | ${data.readingDate} (${histResult})`);
 
     readingsReceived++;
     await adapter.setStateAsync('info.lastSync',         { val: Date.now(), ack: true });
     await adapter.setStateAsync('info.readingsReceived', { val: readingsReceived,         ack: true });
-    return base;
+    return { path: base, history: histResult };
 }
 
 // ─── Historie ─────────────────────────────────────────────────────────────────
@@ -534,7 +544,16 @@ async function updateHistory(base, entry) {
         const ex = await adapter.getStateAsync(stateId);
         if (ex && ex.val) { history = JSON.parse(ex.val); if (!Array.isArray(history)) history = []; }
     } catch { history = []; }
-    if (history.some(h => h.ts === entry.ts)) return 'duplicate';
+
+    const idx = history.findIndex(h => h.ts === entry.ts);
+    if (idx >= 0) {
+        if (history[idx].value === entry.value) return 'duplicate';
+        history[idx] = entry;
+        history.sort((a, b) => a.ts - b.ts);
+        await adapter.setStateAsync(stateId, { val: JSON.stringify(history), ts: entry.ts, ack: true });
+        return 'updated';
+    }
+
     history.push(entry);
     history.sort((a, b) => a.ts - b.ts);
     if (keep > 0 && history.length > keep) history = history.slice(history.length - keep);
@@ -1078,6 +1097,11 @@ nav {
 }
 .hist-row:last-child { border: none; }
 .hist-val { color: var(--text); font-weight: 600; }
+.hist-edit-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: .78em;
+}
+.hist-edit-btn:hover { color: var(--secondary); border-color: var(--secondary); }
 .mc-consume {
   font-size: .76em; color: var(--accent); margin-top: 6px;
   display: flex; align-items: center; gap: 4px;
@@ -1625,7 +1649,8 @@ const I18N = {
     tab_data:'Daten', tab_nodes:'Nodes', tab_import:'Import', tab_logs:'Logs', tab_system:'System',
     no_data:'Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App oder lade ein Backup hoch.',
     no_nodes:'Noch keine ESP32 Nodes registriert.<br>Wenn ein MeterMaster Node startet, erscheint er automatisch hier.',
-    history:'Verlauf', since_last:'seit letzter Ablesung', days:'Tage', chart_btn:'Chart', csv_btn:'CSV',
+    history:'Verlauf', history_edit:'Wert bearbeiten', history_edit_prompt:'Neuer Zählerstand:', history_saved:'Gespeichert',
+    since_last:'seit letzter Ablesung', days:'Tage', chart_btn:'Chart', csv_btn:'CSV',
     chart_readings:'Z\u00E4hlerstand', chart_monthly:'Monatsverbrauch', chart_period_all:'Alles',
     chart_yearly:'Pro Jahr', chart_yearly_proj:'Hochrechnung', chart_per_year:'/Jahr',
     chart_yearly_hint:'basierend auf {days} {daysLabel} ({delta} {unit})',
@@ -1672,7 +1697,8 @@ const I18N = {
     tab_data:'Data', tab_nodes:'Nodes', tab_import:'Import', tab_logs:'Logs', tab_system:'System',
     no_data:'No readings received yet.<br>Start a sync in the MeterMaster app or upload a backup.',
     no_nodes:'No ESP32 nodes registered yet.<br>When a MeterMaster node starts and sends its heartbeat, it will appear here automatically.',
-    history:'History', since_last:'since last reading', days:'days', chart_btn:'Chart', csv_btn:'CSV',
+    history:'History', history_edit:'Edit value', history_edit_prompt:'New meter reading:', history_saved:'Saved',
+    since_last:'since last reading', days:'days', chart_btn:'Chart', csv_btn:'CSV',
     chart_readings:'Meter reading', chart_monthly:'Monthly consumption', chart_period_all:'All',
     chart_yearly:'Per year', chart_yearly_proj:'Projected', chart_per_year:'/yr',
     chart_yearly_hint:'based on {days} {daysLabel} ({delta} {unit})',
@@ -2147,7 +2173,13 @@ async function fetchData() {
           const hist   = m.history || [];
           const delta  = calcDelta(hist);
           const rows   = hist.slice().reverse().map(h =>
-            '<div class="hist-row"><span>'+esc(fmtDt(h.ts))+'</span><span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span></div>'
+            '<div class="hist-row">'+
+              '<span>'+esc(fmtDt(h.ts))+'</span>'+
+              '<span style="display:flex;align-items:center;gap:8px;">'+
+                '<span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span>'+
+                '<button type="button" class="hist-edit-btn" data-idx="'+cacheIdx+'" data-ts="'+h.ts+'" title="'+esc(t('history_edit'))+'">\u270E</button>'+
+              '</span>'+
+            '</div>'
           ).join('');
           const consumeHtml = delta
             ? '<div class="mc-consume">\uD83D\uDCCA +'+fmtNum(delta.delta)+' '+esc(m.unit||'')+' '+t('since_last')+' ('+delta.days+' '+t('days')+')</div>'
@@ -2191,6 +2223,50 @@ async function fetchData() {
 function toggleHist(id) {
   const el = document.getElementById(id);
   if (el) el.classList.toggle('open');
+}
+
+window.editHistoryValue = async function editHistoryValue(cacheIdx, ts) {
+  const m = dataCacheList[cacheIdx];
+  if (!m) return;
+  const entry = (m.history || []).find(h => h.ts === ts);
+  if (!entry) return;
+  const raw = window.prompt(t('history_edit_prompt'), String(entry.value));
+  if (raw === null) return;
+  const normalized = String(raw).trim().replace(',', '.');
+  const value = parseFloat(normalized);
+  if (!Number.isFinite(value)) {
+    window.alert(t('error') + ': value');
+    return;
+  }
+  try {
+    const r = await authFetch('/api/reading', {
+      method: 'POST',
+      body: JSON.stringify({
+        house: m.house,
+        apartment: m.apartment,
+        meter: m.meter,
+        value,
+        unit: m.unit || '',
+        typeName: m.typeName || '',
+        readingDate: entry.readingDate
+      })
+    });
+    if (!r) return;
+    const d = await r.json();
+    if (!d.ok) {
+      window.alert(t('error') + ': ' + (d.error || r.status));
+      return;
+    }
+    entry.value = value;
+    if (m.history && m.history.length) {
+      const newest = m.history.slice().sort((a, b) => a.ts - b.ts).pop();
+      m.latest = newest.value;
+      m.latestDate = newest.readingDate;
+    }
+    await fetchData();
+  } catch (e) {
+    window.alert(t('error') + ': ' + e.message);
+  }
 }
 // \u2500\u2500 NODES-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let discoverCache = [];
@@ -2515,6 +2591,15 @@ function initTabs() {
   document.addEventListener('click', e => {
     const btn = e.target.closest('.mc-hist-toggle');
     if (btn && btn.dataset.hist) toggleHist(btn.dataset.hist);
+  });
+
+  // History value edit
+  document.addEventListener('click', e => {
+    const editBtn = e.target.closest('.hist-edit-btn');
+    if (!editBtn) return;
+    const idx = parseInt(editBtn.dataset.idx, 10);
+    const ts  = parseInt(editBtn.dataset.ts, 10);
+    editHistoryValue(idx, ts);
   });
 
   // Chart + CSV + Chart-Modal via Event Delegation
