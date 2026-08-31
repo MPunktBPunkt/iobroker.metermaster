@@ -1,8 +1,34 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.9.4",
+    "version": "0.9.6",
     "news": {
+      "0.9.6": {
+        "en": "Assign display nodes via chips on meter cards in the Data tab",
+        "de": "Anzeige-Nodes per Chips auf den Zähler-Kacheln im Daten-Tab zuweisen",
+        "ru": "Assign nodes via chips on meter cards",
+        "pt": "Assign nodes via chips on meter cards",
+        "nl": "Nodes toewijzen via chips op meterkarten",
+        "fr": "Assigner des nodes via des chips sur les cartes compteur",
+        "it": "Assegna node tramite chip sulle card contatore",
+        "es": "Asignar nodes mediante chips en las tarjetas de contador",
+        "pl": "Przypisywanie node przez chipy na kartach liczników",
+        "uk": "Призначення node через чіпи на картках лічильників",
+        "zh-cn": "在数据页计量表卡片上通过芯片分配显示节点"
+      },
+      "0.9.5": {
+        "en": "Correct history on re-sync; edit values in Web UI; print chart and apartment/house latest readings",
+        "de": "Historie bei erneutem Sync korrigieren; Werte in der Web-UI bearbeiten; Chart sowie Wohnungs-/Haus-Stände drucken",
+        "ru": "Correction of history; Web UI edit; print chart and readings",
+        "pt": "Correct history; Web UI edit; print",
+        "nl": "History corrigeren; Web UI edit; printen",
+        "fr": "Corriger l'historique; édition Web UI; impression",
+        "it": "Correggi cronologia; modifica Web UI; stampa",
+        "es": "Corregir historial; edición Web UI; imprimir",
+        "pl": "Korekta historii; edycja Web UI; druk",
+        "uk": "Корекція історії; редагування Web UI; друк",
+        "zh-cn": "更正历史记录；Web UI 编辑；打印图表与读数"
+      },
       "0.9.4": {
         "en": "Review fixes: English logs/states/API errors, Web UI i18n, config validation, removed /api/update",
         "de": "Review-Fixes: Englische Logs/States/API-Fehler, Web-UI-i18n, Config-Validierung, /api/update entfernt",

@@ -4,7 +4,7 @@ const utils  = require('@iobroker/adapter-core');
 const http   = require('node:http');
 const crypto = require('node:crypto');
 const https  = require('node:https');
-const CURRENT_VERSION = '0.9.4';
+const CURRENT_VERSION = '0.9.6';
 const GITHUB_REPO     = 'MPunktBPunkt/ioBroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/ioBroker.metermaster';
 
@@ -30,16 +30,21 @@ function cacheReading(house, apt, meter, value, unit, typeName, readingDate, ts)
     if (!receivedData[house][apt][meter])   receivedData[house][apt][meter] = { unit, typeName, history: [] };
 
     const entry = receivedData[house][apt][meter];
-    entry.latest     = value;
-    entry.latestDate = readingDate;
     entry.unit       = unit;
     entry.typeName   = typeName;
 
-    // Nur in Cache-History hinzufügen wenn noch nicht vorhanden
-    if (!entry.history.some(h => h.ts === ts)) {
+    const histIdx = entry.history.findIndex(h => h.ts === ts);
+    if (histIdx >= 0) {
+        entry.history[histIdx] = { value, readingDate, ts };
+    } else {
         entry.history.push({ value, readingDate, ts });
         entry.history.sort((a, b) => a.ts - b.ts);
     }
+
+    // latest = chronologisch neuester Eintrag (Korrektur alter Werte ändert latest nicht)
+    const newest = entry.history[entry.history.length - 1];
+    entry.latest     = newest.value;
+    entry.latestDate = newest.readingDate;
 }
 
 // ─── Log-System ───────────────────────────────────────────────────────────────
@@ -249,7 +254,7 @@ function startHttpServer() {
 
     server = http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin',  '*');
-        res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, PUT, GET, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
@@ -315,7 +320,9 @@ function startHttpServer() {
         }
 
         if      (req.method === 'GET'  && url === '/api/ping')     { handlePing(res, clientIp); }
-        else if (req.method === 'POST' && url === '/api/reading')  { readBody(req, b => handleReading(b, res, clientIp)); }
+        else if ((req.method === 'POST' || req.method === 'PUT') && url === '/api/reading') {
+            readBody(req, b => handleReading(b, res, clientIp));
+        }
         else if (req.method === 'POST' && url === '/api/readings') { readBody(req, b => handleReadings(b, res, clientIp)); }
         else if (req.method === 'POST' && url === '/api/import')   { readBody(req, b => handleImport(b, res, clientIp)); }
         else {
@@ -377,8 +384,8 @@ async function handleReading(body, res, clientIp) {
     log(LVL.INFO, CAT.SYNC, `Reading received`,
         `${data.house}/${data.apartment}/${data.meter} = ${data.value} ${data.unit||''} (${data.readingDate})`);
     try {
-        const path = await storeReading(data);
-        sendJson(res, 200, { ok: true, path });
+        const result = await storeReading(data);
+        sendJson(res, 200, { ok: true, path: result.path, history: result.history });
     } catch (e) {
         log(LVL.ERROR, CAT.SYNC, `Storage error`, e.message);
         sendJson(res, 500, { error: e.message });
@@ -504,25 +511,28 @@ async function storeReading(data) {
 
     if (dpNew) log(LVL.INFO, CAT.DATAPOINT, `Data points created`, `${base}.readings.{latest,latestDate,history} + name/unit/typeName`);
 
-    await adapter.setStateAsync(`${base}.readings.latest`,     { val: value,              ts, ack: true });
-    await adapter.setStateAsync(`${base}.readings.latestDate`, { val: data.readingDate,   ts, ack: true });
-    await adapter.setStateAsync(`${base}.name`,                { val: data.meter,         ts, ack: true });
-    await adapter.setStateAsync(`${base}.unit`,                { val: data.unit||'',      ts, ack: true });
-    await adapter.setStateAsync(`${base}.typeName`,            { val: data.typeName||'',  ts, ack: true });
-
-    log(LVL.DEBUG, CAT.SYNC, `State written`, `metermaster.0.${base} = ${value} ${data.unit||''} | ${data.readingDate}`);
+    await adapter.setStateAsync(`${base}.name`,     { val: data.meter,        ts, ack: true });
+    await adapter.setStateAsync(`${base}.unit`,     { val: data.unit||'',     ts, ack: true });
+    await adapter.setStateAsync(`${base}.typeName`, { val: data.typeName||'', ts, ack: true });
 
     const histResult = await updateHistory(base, { value, unit: data.unit||'', readingDate: data.readingDate, ts });
     if (histResult === 'added')     log(LVL.DEBUG, CAT.HISTORY, `History +1`, `${base} @ ${data.readingDate}`);
+    if (histResult === 'updated')   log(LVL.INFO,  CAT.HISTORY, `History updated`, `${base} @ ${data.readingDate} → ${value}`);
     if (histResult === 'duplicate') log(LVL.DEBUG, CAT.HISTORY, `Duplicate`,  `${base} @ ${data.readingDate}`);
 
-    // In-Memory-Cache aktualisieren
+    // Cache + latest anhand chronologisch neuestem History-Eintrag
     cacheReading(house, apt, meter, value, data.unit||'', data.typeName||'', data.readingDate, ts);
+    const cached = receivedData[house][apt][meter];
+    const latestTs = new Date(cached.latestDate).getTime();
+    await adapter.setStateAsync(`${base}.readings.latest`,     { val: cached.latest,     ts: latestTs, ack: true });
+    await adapter.setStateAsync(`${base}.readings.latestDate`, { val: cached.latestDate, ts: latestTs, ack: true });
+
+    log(LVL.DEBUG, CAT.SYNC, `State written`, `metermaster.0.${base} = ${value} ${data.unit||''} | ${data.readingDate} (${histResult})`);
 
     readingsReceived++;
     await adapter.setStateAsync('info.lastSync',         { val: Date.now(), ack: true });
     await adapter.setStateAsync('info.readingsReceived', { val: readingsReceived,         ack: true });
-    return base;
+    return { path: base, history: histResult };
 }
 
 // ─── Historie ─────────────────────────────────────────────────────────────────
@@ -534,7 +544,16 @@ async function updateHistory(base, entry) {
         const ex = await adapter.getStateAsync(stateId);
         if (ex && ex.val) { history = JSON.parse(ex.val); if (!Array.isArray(history)) history = []; }
     } catch { history = []; }
-    if (history.some(h => h.ts === entry.ts)) return 'duplicate';
+
+    const idx = history.findIndex(h => h.ts === entry.ts);
+    if (idx >= 0) {
+        if (history[idx].value === entry.value) return 'duplicate';
+        history[idx] = entry;
+        history.sort((a, b) => a.ts - b.ts);
+        await adapter.setStateAsync(stateId, { val: JSON.stringify(history), ts: entry.ts, ack: true });
+        return 'updated';
+    }
+
     history.push(entry);
     history.sort((a, b) => a.ts - b.ts);
     if (keep > 0 && history.length > keep) history = history.slice(history.length - keep);
@@ -619,7 +638,11 @@ async function migrateStateRoles() {
 
 // ─── API Endpunkte ────────────────────────────────────────────────────────────
 function serveDataJson(res) {
-    sendJson(res, 200, { data: receivedData, receivedTotal: readingsReceived });
+    sendJson(res, 200, {
+        data: receivedData,
+        receivedTotal: readingsReceived,
+        namespace: adapter.namespace,
+    });
 }
 function serveLogsJson(req, res) {
     const u        = new URL(req.url, 'http://localhost');
@@ -1038,6 +1061,38 @@ nav {
   margin-bottom: 8px; padding: 4px 10px;
   border-left: 3px solid var(--primary-deep); background: var(--bg-surface);
   border-radius: 0 6px 6px 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.print-scope-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: .78em;
+  white-space: nowrap;
+}
+.print-scope-btn:hover { color: var(--secondary); border-color: var(--secondary); }
+.mc-nodes {
+  margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+.mc-nodes-label {
+  font-size: .72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px;
+  margin-right: 2px;
+}
+.node-chip {
+  border: 1px solid var(--border); background: var(--bg-surface2); color: var(--text-dim);
+  border-radius: 999px; padding: 3px 10px; font-size: .75em; font-weight: 600;
+  cursor: pointer; line-height: 1.3; display: inline-flex; align-items: center; gap: 5px;
+}
+.node-chip:hover { border-color: var(--secondary); color: var(--secondary); }
+.node-chip.active {
+  background: rgba(76,175,80,.18); color: #A5D6A7; border-color: rgba(76,175,80,.45);
+}
+.node-chip.offline { opacity: .7; }
+.node-chip .dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); display: inline-block;
+}
+.node-chip.active .dot { background: var(--accent); box-shadow: 0 0 4px var(--accent); }
+.meter-card.has-node {
+  border-color: rgba(76,175,80,.35);
+  box-shadow: inset 0 0 0 1px rgba(76,175,80,.12);
 }
 .meters-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(270px,1fr)); gap: 12px; margin-left: 20px; }
 
@@ -1078,6 +1133,11 @@ nav {
 }
 .hist-row:last-child { border: none; }
 .hist-val { color: var(--text); font-weight: 600; }
+.hist-edit-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: .78em;
+}
+.hist-edit-btn:hover { color: var(--secondary); border-color: var(--secondary); }
 .mc-consume {
   font-size: .76em; color: var(--accent); margin-top: 6px;
   display: flex; align-items: center; gap: 4px;
@@ -1544,6 +1604,7 @@ input.search {
     <div class="chart-wrap-box"><canvas id="chart-line"></canvas></div>
     <div class="chart-wrap-box chart-wrap-sm"><canvas id="chart-bar"></canvas></div>
     <div class="chart-modal-foot">
+      <button class="ghost" id="chart-print-btn" title="Print">🖨 Print</button>
       <button class="ghost" id="chart-csv-btn">⬇ CSV</button>
     </div>
   </div>
@@ -1625,7 +1686,13 @@ const I18N = {
     tab_data:'Daten', tab_nodes:'Nodes', tab_import:'Import', tab_logs:'Logs', tab_system:'System',
     no_data:'Noch keine Ablesungen empfangen.<br>Starte einen Sync in der MeterMaster App oder lade ein Backup hoch.',
     no_nodes:'Noch keine ESP32 Nodes registriert.<br>Wenn ein MeterMaster Node startet, erscheint er automatisch hier.',
-    history:'Verlauf', since_last:'seit letzter Ablesung', days:'Tage', chart_btn:'Chart', csv_btn:'CSV',
+    history:'Verlauf', history_edit:'Wert bearbeiten', history_edit_prompt:'Neuer Zählerstand:', history_saved:'Gespeichert',
+    since_last:'seit letzter Ablesung', days:'Tage', chart_btn:'Chart', csv_btn:'CSV', print_btn:'Drucken',
+    print_chart:'Chart drucken', print_apartment:'Wohnung drucken', print_house:'Haus drucken',
+    print_latest_title:'Aktuelle Zählerstände', print_meter:'Zähler', print_value:'Stand',
+    print_unit:'Einheit', print_date:'Datum', print_generated:'Erstellt',
+    node_label:'Node', node_assign:'Diesen Zähler auf dem Node anzeigen',
+    node_unassign:'Anzeige auf diesem Node beenden', node_none:'Keine Nodes registriert',
     chart_readings:'Z\u00E4hlerstand', chart_monthly:'Monatsverbrauch', chart_period_all:'Alles',
     chart_yearly:'Pro Jahr', chart_yearly_proj:'Hochrechnung', chart_per_year:'/Jahr',
     chart_yearly_hint:'basierend auf {days} {daysLabel} ({delta} {unit})',
@@ -1672,7 +1739,13 @@ const I18N = {
     tab_data:'Data', tab_nodes:'Nodes', tab_import:'Import', tab_logs:'Logs', tab_system:'System',
     no_data:'No readings received yet.<br>Start a sync in the MeterMaster app or upload a backup.',
     no_nodes:'No ESP32 nodes registered yet.<br>When a MeterMaster node starts and sends its heartbeat, it will appear here automatically.',
-    history:'History', since_last:'since last reading', days:'days', chart_btn:'Chart', csv_btn:'CSV',
+    history:'History', history_edit:'Edit value', history_edit_prompt:'New meter reading:', history_saved:'Saved',
+    since_last:'since last reading', days:'days', chart_btn:'Chart', csv_btn:'CSV', print_btn:'Print',
+    print_chart:'Print chart', print_apartment:'Print apartment', print_house:'Print house',
+    print_latest_title:'Latest meter readings', print_meter:'Meter', print_value:'Reading',
+    print_unit:'Unit', print_date:'Date', print_generated:'Generated',
+    node_label:'Node', node_assign:'Show this meter on the node',
+    node_unassign:'Stop showing on this node', node_none:'No nodes registered',
     chart_readings:'Meter reading', chart_monthly:'Monthly consumption', chart_period_all:'All',
     chart_yearly:'Per year', chart_yearly_proj:'Projected', chart_per_year:'/yr',
     chart_yearly_hint:'based on {days} {daysLabel} ({delta} {unit})',
@@ -1798,6 +1871,11 @@ function applyI18n() {
   if (crAll) crAll.textContent = t('chart_period_all');
   const csvBtn = document.getElementById('chart-csv-btn');
   if (csvBtn) csvBtn.textContent = '\u2B07 ' + t('csv_btn');
+  const printBtn = document.getElementById('chart-print-btn');
+  if (printBtn) {
+    printBtn.textContent = '\uD83D\uDDA8 ' + t('print_btn');
+    printBtn.title = t('print_chart');
+  }
   const cc = document.getElementById('chart-close');
   if (cc) cc.title = t('chart_close');
   const yearlyBtn = document.getElementById('chart-yearly-toggle');
@@ -2070,6 +2148,88 @@ function closeChartModal() {
   chartCtxIdx = -1;
 }
 
+function openPrintWindow(title, bodyHtml) {
+  const w = window.open('', '_blank', 'noopener,noreferrer');
+  if (!w) {
+    window.alert(t('error'));
+    return;
+  }
+  const generated = new Date().toLocaleString(localeTag(), { hour12: false });
+  w.document.write(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title>'+
+    '<style>'+
+    'body{font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#111;margin:24px;}'+
+    'h1{font-size:1.25rem;margin:0 0 4px}h2{font-size:1rem;color:#444;font-weight:600;margin:0 0 16px}'+
+    '.meta{font-size:.85rem;color:#666;margin-bottom:18px}'+
+    'table{width:100%;border-collapse:collapse;font-size:.95rem}'+
+    'th,td{border-bottom:1px solid #ddd;padding:8px 6px;text-align:left}'+
+    'th{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:#555}'+
+    'td.num{text-align:right;font-variant-numeric:tabular-nums}'+
+    'img{max-width:100%;height:auto;margin:12px 0;border:1px solid #eee}'+
+    '@media print{body{margin:12mm}button{display:none}}'+
+    '</style></head><body>'+
+    '<h1>'+esc(title)+'</h1>'+
+    '<div class="meta">'+esc(t('print_generated'))+': '+esc(generated)+'</div>'+
+    bodyHtml+
+    '<script>window.onload=function(){window.focus();window.print();}<\\/script>'+
+    '</body></html>'
+  );
+  w.document.close();
+}
+
+window.printChartView = function printChartView() {
+  if (chartCtxIdx < 0) return;
+  const m = dataCacheList[chartCtxIdx];
+  if (!m) return;
+  const line = document.getElementById('chart-line');
+  const bar  = document.getElementById('chart-bar');
+  const kpi  = document.getElementById('chart-kpi');
+  const kpiY = document.getElementById('chart-kpi-yearly');
+  let html = '<h2>'+esc(m.house + ' \u203A ' + m.apartment)+
+    (m.typeName ? ' \u00B7 ' + esc(m.typeName) : '')+'</h2>';
+  if (kpi && kpi.style.display !== 'none' && kpi.textContent.trim()) {
+    html += '<p>'+esc(kpi.textContent.trim())+'</p>';
+  }
+  if (kpiY && kpiY.style.display !== 'none' && kpiY.textContent.trim()) {
+    html += '<p>'+esc(kpiY.textContent.trim())+'</p>';
+  }
+  if (line) html += '<img alt="'+esc(t('chart_readings'))+'" src="'+line.toDataURL('image/png')+'">';
+  if (bar && bar.offsetParent !== null) {
+    html += '<img alt="'+esc(t('chart_monthly'))+'" src="'+bar.toDataURL('image/png')+'">';
+  }
+  openPrintWindow(m.meter + ' \u2013 ' + t('print_chart'), html);
+};
+
+window.printScopeReadings = function printScopeReadings(house, apartment) {
+  const rows = dataCacheList.filter(m =>
+    m.house === house && (!apartment || m.apartment === apartment)
+  );
+  if (!rows.length) return;
+  const title = apartment
+    ? (house + ' \u203A ' + apartment)
+    : house;
+  let html = '<h2>'+esc(t('print_latest_title'))+'</h2>';
+  html += '<table><thead><tr>'+
+    (apartment ? '' : '<th>'+esc(t('prev_apts'))+'</th>')+
+    '<th>'+esc(t('print_meter'))+'</th>'+
+    '<th>'+esc(t('print_value'))+'</th>'+
+    '<th>'+esc(t('print_unit'))+'</th>'+
+    '<th>'+esc(t('print_date'))+'</th>'+
+    '</tr></thead><tbody>';
+  for (const m of rows) {
+    const dt = m.latestDate ? fmtDt(new Date(m.latestDate).getTime()) : '\u2013';
+    html += '<tr>'+
+      (apartment ? '' : '<td>'+esc(m.apartment)+'</td>')+
+      '<td>'+esc(m.meter)+(m.typeName ? ' <span style="color:#777">('+esc(m.typeName)+')</span>' : '')+'</td>'+
+      '<td class="num">'+(m.latest !== undefined && m.latest !== null ? esc(String(m.latest)) : '\u2013')+'</td>'+
+      '<td>'+esc(m.unit || '')+'</td>'+
+      '<td>'+esc(dt)+'</td>'+
+      '</tr>';
+  }
+  html += '</tbody></table>';
+  openPrintWindow(title, html);
+};
+
 // \u2500\u2500 Tab-Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 window.showTab = function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -2124,9 +2284,38 @@ async function fetchSysStats() {
 }
 
 // \u2500\u2500 DATEN-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+let nodesCacheForData = [];
+let dataNamespace = '';
+
+function meterStateId(house, apt, meter) {
+  return dataNamespace ? (dataNamespace + '.' + house + '.' + apt + '.' + meter + '.readings.latest') : '';
+}
+
+function nodeSid(n) {
+  try { return JSON.parse(n.config || '{}').sid || ''; } catch { return ''; }
+}
+
+function buildNodeChipsHtml(stateId, unit, label) {
+  if (!nodesCacheForData.length) return '';
+  const chips = nodesCacheForData.map(n => {
+    const sid = nodeSid(n);
+    const active = sid && stateId && sid === stateId;
+    const name = n.name || n.mac;
+    const cls = 'node-chip' + (active ? ' active' : '') + (n.online ? '' : ' offline');
+    const title = active ? t('node_unassign') : t('node_assign');
+    return '<button type="button" class="'+cls+'" data-mac="'+esc(n.mac)+'" data-sid="'+esc(stateId)+'" data-unit="'+esc(unit||'')+'" data-label="'+esc(label||'')+'" data-active="'+(active?'1':'0')+'" title="'+esc(title)+'"><span class="dot"></span>'+esc(name)+'</button>';
+  }).join('');
+  return '<div class="mc-nodes"><span class="mc-nodes-label">'+esc(t('node_label'))+'</span>'+chips+'</div>';
+}
+
 async function fetchData() {
   try {
-    const d   = await fetch('/api/data').then(r => r.json());
+    const [d, nodes] = await Promise.all([
+      fetch('/api/data').then(r => r.json()),
+      fetch('/api/nodes').then(r => r.json()).catch(() => [])
+    ]);
+    nodesCacheForData = Array.isArray(nodes) ? nodes : [];
+    dataNamespace = d.namespace || '';
     const con = document.getElementById('data-container');
     dataCacheList = [];
     if (!d.data || !Object.keys(d.data).length) {
@@ -2136,9 +2325,11 @@ async function fetchData() {
     let html = '';
     let idx = 0;
     for (const [house, apts] of Object.entries(d.data)) {
-      html += '<div class="house-block"><div class="house-title">\uD83C\uDFE0 '+esc(house)+'</div>';
+      html += '<div class="house-block"><div class="house-title"><span>\uD83C\uDFE0 '+esc(house)+'</span>'+
+        '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" title="'+esc(t('print_house'))+'">\uD83D\uDDA8</button></div>';
       for (const [apt, meters] of Object.entries(apts)) {
-        html += '<div class="apt-block"><div class="apt-title">\uD83C\uDFD8 '+esc(apt)+'</div><div class="meters-grid">';
+        html += '<div class="apt-block"><div class="apt-title"><span>\uD83C\uDFD8 '+esc(apt)+'</span>'+
+          '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" data-print-apt="'+esc(apt)+'" title="'+esc(t('print_apartment'))+'">\uD83D\uDDA8</button></div><div class="meters-grid">';
         for (const [key, m] of Object.entries(meters)) {
           const cacheIdx = idx++;
           dataCacheList.push({ house, apartment: apt, meter: key, unit: m.unit, typeName: m.typeName, latest: m.latest, latestDate: m.latestDate, history: m.history || [] });
@@ -2146,8 +2337,16 @@ async function fetchData() {
           const histId = 'h-'+CSS.escape(house+apt+key);
           const hist   = m.history || [];
           const delta  = calcDelta(hist);
+          const sid    = meterStateId(house, apt, key);
+          const assignedHere = nodesCacheForData.some(n => nodeSid(n) === sid);
           const rows   = hist.slice().reverse().map(h =>
-            '<div class="hist-row"><span>'+esc(fmtDt(h.ts))+'</span><span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span></div>'
+            '<div class="hist-row">'+
+              '<span>'+esc(fmtDt(h.ts))+'</span>'+
+              '<span style="display:flex;align-items:center;gap:8px;">'+
+                '<span class="hist-val">'+h.value+' '+esc(m.unit||'')+'</span>'+
+                '<button type="button" class="hist-edit-btn" data-idx="'+cacheIdx+'" data-ts="'+h.ts+'" title="'+esc(t('history_edit'))+'">\u270E</button>'+
+              '</span>'+
+            '</div>'
           ).join('');
           const consumeHtml = delta
             ? '<div class="mc-consume">\uD83D\uDCCA +'+fmtNum(delta.delta)+' '+esc(m.unit||'')+' '+t('since_last')+' ('+delta.days+' '+t('days')+')</div>'
@@ -2158,8 +2357,9 @@ async function fetchData() {
                 '<button class="mc-csv-btn" data-idx="'+cacheIdx+'" title="'+esc(t('csv_btn'))+'">\u2B07 '+esc(t('csv_btn'))+'</button>'+
               '</div>'
             : '';
+          const nodesHtml = buildNodeChipsHtml(sid, m.unit, key);
           html +=
-            '<div class="meter-card">'+
+            '<div class="meter-card'+(assignedHere ? ' has-node' : '')+'">'+
               '<div class="mc-head">'+
                 '<div class="mc-name">'+icon+' '+esc(key)+'</div>'+
                 '<div class="mc-badge">'+esc(m.typeName||'?')+'</div>'+
@@ -2175,6 +2375,7 @@ async function fetchData() {
                   '<div class="mc-history" id="'+histId+'">'+rows+'</div>'
                 : '')+
               actionsHtml+
+              nodesHtml+
             '</div>';
         }
         html += '</div></div>';
@@ -2188,9 +2389,79 @@ async function fetchData() {
   }
 }
 
+window.toggleNodeAssign = async function toggleNodeAssign(mac, sid, label, unit, currentlyActive) {
+  const nextSid = currentlyActive ? '' : sid;
+  try {
+    const r = await authFetch('/api/nodes/'+encodeURIComponent(mac)+'/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        sid: nextSid,
+        label: nextSid ? (label || '') : '',
+        unit: nextSid ? (unit || '') : ''
+      })
+    });
+    if (!r) return;
+    const d = await r.json();
+    if (!d.ok) {
+      window.alert(t('error') + ': ' + (d.error || r.status));
+      return;
+    }
+    await fetchData();
+    if (typeof fetchNodes === 'function' && document.querySelector('.nav-item.active[data-tab="nodes"]')) {
+      fetchNodes();
+    }
+  } catch (e) {
+    window.alert(t('error') + ': ' + e.message);
+  }
+}
+
 function toggleHist(id) {
   const el = document.getElementById(id);
   if (el) el.classList.toggle('open');
+}
+
+window.editHistoryValue = async function editHistoryValue(cacheIdx, ts) {
+  const m = dataCacheList[cacheIdx];
+  if (!m) return;
+  const entry = (m.history || []).find(h => h.ts === ts);
+  if (!entry) return;
+  const raw = window.prompt(t('history_edit_prompt'), String(entry.value));
+  if (raw === null) return;
+  const normalized = String(raw).trim().replace(',', '.');
+  const value = parseFloat(normalized);
+  if (!Number.isFinite(value)) {
+    window.alert(t('error') + ': value');
+    return;
+  }
+  try {
+    const r = await authFetch('/api/reading', {
+      method: 'POST',
+      body: JSON.stringify({
+        house: m.house,
+        apartment: m.apartment,
+        meter: m.meter,
+        value,
+        unit: m.unit || '',
+        typeName: m.typeName || '',
+        readingDate: entry.readingDate
+      })
+    });
+    if (!r) return;
+    const d = await r.json();
+    if (!d.ok) {
+      window.alert(t('error') + ': ' + (d.error || r.status));
+      return;
+    }
+    entry.value = value;
+    if (m.history && m.history.length) {
+      const newest = m.history.slice().sort((a, b) => a.ts - b.ts).pop();
+      m.latest = newest.value;
+      m.latestDate = newest.readingDate;
+    }
+    await fetchData();
+  } catch (e) {
+    window.alert(t('error') + ': ' + e.message);
+  }
 }
 // \u2500\u2500 NODES-TAB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let discoverCache = [];
@@ -2517,6 +2788,28 @@ function initTabs() {
     if (btn && btn.dataset.hist) toggleHist(btn.dataset.hist);
   });
 
+  // History value edit
+  document.addEventListener('click', e => {
+    const editBtn = e.target.closest('.hist-edit-btn');
+    if (!editBtn) return;
+    const idx = parseInt(editBtn.dataset.idx, 10);
+    const ts  = parseInt(editBtn.dataset.ts, 10);
+    editHistoryValue(idx, ts);
+  });
+
+  // Node chips on meter cards: assign / unassign
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('.node-chip');
+    if (!chip) return;
+    toggleNodeAssign(
+      chip.dataset.mac,
+      chip.dataset.sid,
+      chip.dataset.label || '',
+      chip.dataset.unit || '',
+      chip.dataset.active === '1'
+    );
+  });
+
   // Chart + CSV + Chart-Modal via Event Delegation
   document.addEventListener('click', e => {
     const chartBtn = e.target.closest('.mc-chart-btn');
@@ -2526,6 +2819,12 @@ function initTabs() {
     if (e.target.closest('.chart-close')) { closeChartModal(); return; }
     if (e.target.id === 'chart-overlay') { closeChartModal(); return; }
     if (e.target.closest('#chart-csv-btn')) { if (chartCtxIdx >= 0) exportMeterCsv(chartCtxIdx); return; }
+    if (e.target.closest('#chart-print-btn')) { printChartView(); return; }
+    const scopeBtn = e.target.closest('.print-scope-btn');
+    if (scopeBtn) {
+      printScopeReadings(scopeBtn.dataset.printHouse, scopeBtn.dataset.printApt || null);
+      return;
+    }
     const rangeBtn = e.target.closest('.chart-range[data-months]');
     if (rangeBtn) {
       chartRangeMonths = parseInt(rangeBtn.dataset.months, 10) || 0;
