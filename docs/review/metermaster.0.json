@@ -1,0 +1,368 @@
+{
+  "metermaster.0.info": {
+    "_id": "metermaster.0.info",
+    "type": "channel",
+    "common": {
+      "name": "Information"
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231321195,
+    "user": "system.user.admin"
+  },
+  "metermaster.0.SampleHouse": {
+    "_id": "metermaster.0.SampleHouse",
+    "type": "channel",
+    "common": {
+      "name": "SampleHouse"
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322714,
+    "user": "system.user.admin"
+  },
+  "metermaster.0.SampleHouse.West": {
+    "_id": "metermaster.0.SampleHouse.West",
+    "type": "channel",
+    "common": {
+      "name": "West"
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322716,
+    "user": "system.user.admin"
+  },
+  "metermaster.0.SampleHouse.West.HotWater": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater",
+    "type": "channel",
+    "common": {
+      "name": "HotWater"
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322717,
+    "user": "system.user.admin"
+  },
+  "metermaster.0.SampleHouse.West.HotWater.readings": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater.readings",
+    "type": "channel",
+    "common": {
+      "name": "Readings"
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322718,
+    "user": "system.user.admin"
+  },
+  "metermaster.0.nodes": {
+    "_id": "metermaster.0.nodes",
+    "type": "channel",
+    "common": {
+      "name": "ESP32 Nodes"
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322734,
+    "user": "system.user.admin"
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08",
+    "type": "channel",
+    "common": {
+      "name": "ESP32 Node C8C9A3CB7B08"
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322735,
+    "user": "system.user.admin"
+  },
+  "metermaster.0.info.connection": {
+    "_id": "metermaster.0.info.connection",
+    "type": "state",
+    "common": {
+      "name": "Adapter connected",
+      "type": "boolean",
+      "role": "indicator.connected",
+      "read": true,
+      "write": false,
+      "def": false
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231321269,
+    "user": "system.user.admin",
+    "val": true,
+    "ack": true
+  },
+  "metermaster.0.info.lastSync": {
+    "_id": "metermaster.0.info.lastSync",
+    "type": "state",
+    "common": {
+      "name": "Last sync",
+      "type": "number",
+      "role": "value.time",
+      "read": true,
+      "write": false,
+      "def": 0
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322730,
+    "user": "system.user.admin",
+    "val": 1786231322729,
+    "ack": true
+  },
+  "metermaster.0.info.readingsReceived": {
+    "_id": "metermaster.0.info.readingsReceived",
+    "type": "state",
+    "common": {
+      "name": "Readings received",
+      "type": "number",
+      "role": "value",
+      "read": true,
+      "write": false,
+      "def": 0
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322730,
+    "user": "system.user.admin",
+    "val": 1,
+    "ack": true
+  },
+  "metermaster.0.SampleHouse.West.HotWater.readings.latest": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater.readings.latest",
+    "type": "state",
+    "common": {
+      "name": "HotWater – latest value",
+      "type": "number",
+      "role": "value",
+      "unit": "m³",
+      "read": true,
+      "write": false,
+      "def": 0
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1707730200000,
+    "user": "system.user.admin",
+    "val": 128.75,
+    "ack": true
+  },
+  "metermaster.0.SampleHouse.West.HotWater.readings.latestDate": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater.readings.latestDate",
+    "type": "state",
+    "common": {
+      "name": "Reading date",
+      "type": "string",
+      "role": "date",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1707730200000,
+    "user": "system.user.admin",
+    "val": "2024-02-12T09:30:00.000Z",
+    "ack": true
+  },
+  "metermaster.0.SampleHouse.West.HotWater.name": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater.name",
+    "type": "state",
+    "common": {
+      "name": "Meter name",
+      "type": "string",
+      "role": "text",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1707730200000,
+    "user": "system.user.admin",
+    "val": "HotWater",
+    "ack": true
+  },
+  "metermaster.0.SampleHouse.West.HotWater.unit": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater.unit",
+    "type": "state",
+    "common": {
+      "name": "Unit",
+      "type": "string",
+      "role": "text",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1707730200000,
+    "user": "system.user.admin",
+    "val": "m³",
+    "ack": true
+  },
+  "metermaster.0.SampleHouse.West.HotWater.typeName": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater.typeName",
+    "type": "state",
+    "common": {
+      "name": "Meter type",
+      "type": "string",
+      "role": "text",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1707730200000,
+    "user": "system.user.admin",
+    "val": "HotWater",
+    "ack": true
+  },
+  "metermaster.0.SampleHouse.West.HotWater.readings.history": {
+    "_id": "metermaster.0.SampleHouse.West.HotWater.readings.history",
+    "type": "state",
+    "common": {
+      "name": "Reading history",
+      "type": "string",
+      "role": "json",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1707730200000,
+    "user": "system.user.admin",
+    "val": "[{\"value\":128.75,\"unit\":\"m³\",\"readingDate\":\"2024-02-12T09:30:00.000Z\",\"ts\":1707730200000}]",
+    "ack": true
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08.ip": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08.ip",
+    "type": "state",
+    "common": {
+      "name": "IP address",
+      "type": "string",
+      "role": "info.ip",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322742,
+    "user": "system.user.admin",
+    "val": "192.168.178.110",
+    "ack": true
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08.name": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08.name",
+    "type": "state",
+    "common": {
+      "name": "Device name",
+      "type": "string",
+      "role": "info.name",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322743,
+    "user": "system.user.admin",
+    "val": "MeterMaster Node",
+    "ack": true
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08.version": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08.version",
+    "type": "state",
+    "common": {
+      "name": "Firmware version",
+      "type": "string",
+      "role": "info.firmware",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322743,
+    "user": "system.user.admin",
+    "val": "2.8.1",
+    "ack": true
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08.lastSeen": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08.lastSeen",
+    "type": "state",
+    "common": {
+      "name": "Last seen (ms)",
+      "type": "number",
+      "role": "value.time",
+      "read": true,
+      "write": false,
+      "def": 0
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322744,
+    "user": "system.user.admin",
+    "val": 1786231322734,
+    "ack": true
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08.config": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08.config",
+    "type": "state",
+    "common": {
+      "name": "Configuration (JSON)",
+      "type": "string",
+      "role": "json",
+      "read": true,
+      "write": true,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322739,
+    "user": "system.user.admin",
+    "val": "",
+    "ack": true
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08.configAck": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08.configAck",
+    "type": "state",
+    "common": {
+      "name": "Config acknowledgement",
+      "type": "string",
+      "role": "json",
+      "read": true,
+      "write": false,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322740,
+    "user": "system.user.admin",
+    "val": "",
+    "ack": true
+  },
+  "metermaster.0.nodes.C8C9A3CB7B08.cmd": {
+    "_id": "metermaster.0.nodes.C8C9A3CB7B08.cmd",
+    "type": "state",
+    "common": {
+      "name": "Command (JSON)",
+      "type": "string",
+      "role": "json",
+      "read": true,
+      "write": true,
+      "def": ""
+    },
+    "native": {},
+    "from": "system.adapter.metermaster.0",
+    "ts": 1786231322742,
+    "user": "system.user.admin",
+    "val": "",
+    "ack": true
+  }
+}
