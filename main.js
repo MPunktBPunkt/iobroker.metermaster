@@ -4,7 +4,7 @@ const utils  = require('@iobroker/adapter-core');
 const http   = require('node:http');
 const crypto = require('node:crypto');
 const https  = require('node:https');
-const CURRENT_VERSION = '0.9.6';
+const CURRENT_VERSION = '0.9.7';
 const GITHUB_REPO     = 'MPunktBPunkt/ioBroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/ioBroker.metermaster';
 
@@ -142,7 +142,7 @@ adapter.on('stateChange', async (id, state) => {
 
     if (field === 'lastSeen') {
         const n = nodesCache[mac];
-        log(LVL.INFO, CAT.NODE, `Heartbeat`, `${mac} | IP: ${n.ip || '?'} | v${n.version || '?'} | ${n.name || 'unnamed'}`);
+        log(LVL.DEBUG, CAT.NODE, `Heartbeat`, `${mac} | IP: ${n.ip || '?'} | v${n.version || '?'} | ${n.name || 'unnamed'}`);
         await ensureNodeStates(mac);
     }
 });
@@ -271,6 +271,14 @@ function startHttpServer() {
         if (req.method === 'GET'  && url === '/api/version') { serveVersion(res);        return; }
         if (req.method === 'GET'  && url === '/api/nodes')   { serveNodesJson(res);      return; }
         if (req.method === 'GET'  && url === '/api/discover'){ serveDiscoverJson(res);   return; }
+        if (req.method === 'GET'  && url === '/api/node-discover'){ serveNodeDiscoverJson(res); return; }
+        if (req.method === 'GET'  && (url === '/getStates/metermaster.*' || url === '/getStates/metermaster.0.*.readings.latest')) {
+            serveGetStatesLatest(res); return;
+        }
+        const getStateMatch = req.method === 'GET' ? url.match(/^\/get\/(.+)$/) : null;
+        if (getStateMatch) {
+            serveGetState(decodeURIComponent(getStateMatch[1]), res); return;
+        }
 
         // ESP32 node registration (no auth – ESP32 has no credentials)
         if (req.method === 'POST' && url === '/api/register') {
@@ -713,6 +721,73 @@ function serveDiscoverJson(res) {
     sendJson(res, 200, result);
 }
 
+// ─── simple-api-kompatibel: nur readings.latest (für ESP32-Nodes mit kleinem JSON-Puffer) ─
+function serveGetStatesLatest(res) {
+    const result = {};
+    const ns     = adapter.namespace;
+    const from   = `system.adapter.${adapter.name}.${adapter.instance}`;
+    const now    = Date.now();
+    for (const [house, apts] of Object.entries(receivedData)) {
+        for (const [apt, meters] of Object.entries(apts)) {
+            for (const [meter, data] of Object.entries(meters)) {
+                const ts = data.latestDate ? new Date(data.latestDate).getTime() : now;
+                result[`${ns}.${house}.${apt}.${meter}.readings.latest`] = {
+                    val: data.latest,
+                    ack: true,
+                    ts,
+                    q: 0,
+                    from,
+                    lc: ts,
+                };
+            }
+        }
+    }
+    sendJson(res, 200, result);
+}
+
+async function serveGetState(stateId, res) {
+    try {
+        const state = await adapter.getStateAsync(stateId);
+        if (!state || state.val === null || state.val === undefined) {
+            sendJson(res, 404, { error: 'State not found' });
+            return;
+        }
+        sendJson(res, 200, {
+            val: state.val,
+            ack: !!state.ack,
+            ts:  state.ts,
+            q:   state.q || 0,
+            from: state.from || '',
+            lc:  state.lc || state.ts,
+        });
+    } catch (e) {
+        sendJson(res, 500, { error: e.message });
+    }
+}
+
+// ─── ESP32-WebUI: kompaktes Discover-Format {"ok":true,"states":[...]} ───────
+function serveNodeDiscoverJson(res) {
+    const states = [];
+    const ns     = adapter.namespace;
+    for (const [house, apts] of Object.entries(receivedData)) {
+        for (const [apt, meters] of Object.entries(apts)) {
+            for (const [meter, data] of Object.entries(meters)) {
+                const sid = `${ns}.${house}.${apt}.${meter}.readings.latest`;
+                let lbl = house;
+                if (apt) lbl += ' \u00B7 ' + apt;
+                if (meter) lbl += ' \u00B7 ' + meter;
+                states.push({
+                    id: sid,
+                    val: data.latest,
+                    label: lbl,
+                    unit: data.unit || '',
+                });
+            }
+        }
+    }
+    sendJson(res, 200, { ok: true, states });
+}
+
 // ─── Node Config schreiben ────────────────────────────────────────────────────
 async function handleNodeConfig(mac, body, res, clientIp) {
     let data;
@@ -801,7 +876,7 @@ async function handleNodeRegister(body, res, clientIp) {
         await adapter.setStateAsync(`nodes.${mac}.lastSeen`, { val: ts,      ack: true });
         if (ack) await adapter.setStateAsync(`nodes.${mac}.configAck`, { val: ack, ack: true });
 
-        log(LVL.INFO, CAT.NODE, `Heartbeat`, `${mac} | IP: ${ip} | v${version} | ${name}`);
+        log(LVL.DEBUG, CAT.NODE, `Heartbeat`, `${mac} | IP: ${ip} | v${version} | ${name}`);
 
         // Aktuelle Config zurückgeben (null wenn noch keine gesetzt)
         const config = nodesCache[mac].config || null;
@@ -825,7 +900,7 @@ async function handleNodeAck(mac, body, res) {
     try {
         await ensureNodeStates(mac);
         await adapter.setStateAsync(`nodes.${mac}.configAck`, { val: ack, ack: true });
-        log(LVL.INFO, CAT.NODE, `Config acknowledged`, `${mac} | ack: ${ack}`);
+        log(LVL.DEBUG, CAT.NODE, `Config acknowledged`, `${mac} | ack: ${ack}`);
         sendJson(res, 200, { ok: true });
     } catch (e) {
         sendJson(res, 500, { error: e.message });
@@ -2149,13 +2224,8 @@ function closeChartModal() {
 }
 
 function openPrintWindow(title, bodyHtml) {
-  const w = window.open('', '_blank', 'noopener,noreferrer');
-  if (!w) {
-    window.alert(t('error'));
-    return;
-  }
   const generated = new Date().toLocaleString(localeTag(), { hour12: false });
-  w.document.write(
+  const html =
     '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title>'+
     '<style>'+
     'body{font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#111;margin:24px;}'+
@@ -2172,9 +2242,16 @@ function openPrintWindow(title, bodyHtml) {
     '<div class="meta">'+esc(t('print_generated'))+': '+esc(generated)+'</div>'+
     bodyHtml+
     '<script>window.onload=function(){window.focus();window.print();}<\\/script>'+
-    '</body></html>'
-  );
-  w.document.close();
+    '</body></html>';
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+  if (!w) {
+    URL.revokeObjectURL(url);
+    window.alert(t('error'));
+    return;
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 window.printChartView = function printChartView() {

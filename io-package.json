@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.9.6",
+    "version": "0.9.7",
     "news": {
+      "0.9.7": {
+        "en": "Print fix (Blob URL); ESP32 discover proxy (getStates/node-discover); node heartbeat/ack logs moved to debug",
+        "de": "Druck-Fix (Blob-URL); ESP32-Discover-Proxy (getStates/node-discover); Node-Heartbeat/Ack-Logs auf Debug-Level",
+        "ru": "Print fix; ESP32 discover proxy; node logs debug",
+        "pt": "Print fix; ESP32 discover proxy; node logs debug",
+        "nl": "Print fix; ESP32 discover proxy; node logs debug",
+        "fr": "Print fix; ESP32 discover proxy; node logs debug",
+        "it": "Print fix; ESP32 discover proxy; node logs debug",
+        "es": "Print fix; ESP32 discover proxy; node logs debug",
+        "pl": "Print fix; ESP32 discover proxy; node logs debug",
+        "uk": "Print fix; ESP32 discover proxy; node logs debug",
+        "zh-cn": "打印修复；ESP32 discover 代理；节点日志改为 debug"
+      },
       "0.9.6": {
         "en": "Assign display nodes via chips on meter cards in the Data tab",
         "de": "Anzeige-Nodes per Chips auf den Zähler-Kacheln im Daten-Tab zuweisen",
