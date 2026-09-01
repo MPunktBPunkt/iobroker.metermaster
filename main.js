@@ -4,7 +4,7 @@ const utils  = require('@iobroker/adapter-core');
 const http   = require('node:http');
 const crypto = require('node:crypto');
 const https  = require('node:https');
-const CURRENT_VERSION = '0.9.7';
+const CURRENT_VERSION = '0.9.8';
 const GITHUB_REPO     = 'MPunktBPunkt/ioBroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/ioBroker.metermaster';
 
@@ -327,7 +327,7 @@ function startHttpServer() {
             log(LVL.DEBUG, CAT.AUTH, `Auth OK`, `IP: ${clientIp} | User: "${reqUser}"`);
         }
 
-        if      (req.method === 'GET'  && url === '/api/ping')     { handlePing(res, clientIp); }
+        if      (req.method === 'GET'  && url === '/api/ping')     { handlePing(req, res, clientIp); return; }
         else if ((req.method === 'POST' || req.method === 'PUT') && url === '/api/reading') {
             readBody(req, b => handleReading(b, res, clientIp));
         }
@@ -362,8 +362,14 @@ function startHttpServer() {
 }
 
 // ─── Ping ─────────────────────────────────────────────────────────────────────
-function handlePing(res, clientIp) {
-    log(LVL.DEBUG, CAT.CONNECT, `Ping`, `IP: ${clientIp}`);
+function handlePing(req, res, clientIp) {
+    const ua = String(req.headers['user-agent'] || '');
+    const appMatch = ua.match(/MeterMaster\/([\d.]+)/i);
+    if (appMatch) {
+        log(LVL.INFO, CAT.CONNECT, `App connection test`, `MeterMaster ${appMatch[1]} | IP: ${clientIp}`);
+    } else {
+        log(LVL.DEBUG, CAT.CONNECT, `Ping`, `IP: ${clientIp}${ua ? ` | UA: ${ua.slice(0, 80)}` : ''}`);
+    }
     sendJson(res, 200, { ok: true, adapter: 'metermaster', version: CURRENT_VERSION, received: readingsReceived });
 }
 

@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.9.7",
+    "version": "0.9.8",
     "news": {
+      "0.9.8": {
+        "en": "Log MeterMaster app connection tests from User-Agent at info level",
+        "de": "Verbindungstests der MeterMaster-App per User-Agent auf Info-Level loggen",
+        "ru": "Log app connection tests via User-Agent",
+        "pt": "Log app connection tests via User-Agent",
+        "nl": "Log app connection tests via User-Agent",
+        "fr": "Log app connection tests via User-Agent",
+        "it": "Log app connection tests via User-Agent",
+        "es": "Log app connection tests via User-Agent",
+        "pl": "Log app connection tests via User-Agent",
+        "uk": "Log app connection tests via User-Agent",
+        "zh-cn": "通过 User-Agent 记录应用连接测试"
+      },
       "0.9.7": {
         "en": "Print fix (Blob URL); ESP32 discover proxy (getStates/node-discover); node heartbeat/ack logs moved to debug",
         "de": "Druck-Fix (Blob-URL); ESP32-Discover-Proxy (getStates/node-discover); Node-Heartbeat/Ack-Logs auf Debug-Level",
