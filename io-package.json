@@ -1,11 +1,24 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.9.9",
+    "version": "0.9.10",
     "news": {
+      "0.9.10": {
+        "en": "Repo checker: remove unpublished 0.9.5 from news; add missing changelog entries for 0.9.6\u20130.9.10",
+        "de": "Repo-Checker: unver\u00f6ffentlichte 0.9.5 aus News entfernt; fehlende Changelog-Eintr\u00e4ge 0.9.6\u20130.9.10 erg\u00e4nzt",
+        "ru": "Repo checker: news/changelog cleanup",
+        "pt": "Repo checker: news/changelog cleanup",
+        "nl": "Repo-checker: news/changelog opgeschoond",
+        "fr": "Repo checker : nettoyage news/changelog",
+        "it": "Repo checker: pulizia news/changelog",
+        "es": "Repo checker: limpieza news/changelog",
+        "pl": "Repo checker: porz\u0105dki news/changelog",
+        "uk": "Repo checker: \u043e\u0447\u0438\u0449\u0435\u043d\u043d\u044f news/changelog",
+        "zh-cn": "\u4ed3\u5e93\u68c0\u67e5\u5668\uff1a\u6e05\u7406 news/changelog"
+      },
       "0.9.9": {
         "en": "Web UI: delete apartment/meter (password confirm); collapsible house/apartment sections",
-        "de": "Web-UI: Wohnung/Zähler löschen (Passwort-Bestätigung); Haus/Wohnung einklappbar",
+        "de": "Web-UI: Wohnung/Z\u00e4hler l\u00f6schen (Passwort-Best\u00e4tigung); Haus/Wohnung einklappbar",
         "ru": "Web UI: delete apartment/meter; collapsible sections",
         "pt": "Web UI: delete apartment/meter; collapsible sections",
         "nl": "Web-UI: appartement/meter verwijderen; inklapbare secties",
@@ -14,7 +27,7 @@
         "es": "Web UI: eliminar vivienda/contador; secciones plegables",
         "pl": "Web UI: usuwanie mieszkania/licznika; zwijane sekcje",
         "uk": "Web UI: delete apartment/meter; collapsible sections",
-        "zh-cn": "Web UI：删除公寓/表计；可折叠分区"
+        "zh-cn": "Web UI\uff1a\u5220\u9664\u516c\u5bd3/\u8868\u8ba1\uff1b\u53ef\u6298\u53e0\u5206\u533a"
       },
       "0.9.8": {
         "en": "Log MeterMaster app connection tests from User-Agent at info level",
@@ -27,7 +40,7 @@
         "es": "Log app connection tests via User-Agent",
         "pl": "Log app connection tests via User-Agent",
         "uk": "Log app connection tests via User-Agent",
-        "zh-cn": "通过 User-Agent 记录应用连接测试"
+        "zh-cn": "\u901a\u8fc7 User-Agent \u8bb0\u5f55\u5e94\u7528\u8fde\u63a5\u6d4b\u8bd5"
       },
       "0.9.7": {
         "en": "Print fix (Blob URL); ESP32 discover proxy (getStates/node-discover); node heartbeat/ack logs moved to debug",
@@ -40,85 +53,46 @@
         "es": "Print fix; ESP32 discover proxy; node logs debug",
         "pl": "Print fix; ESP32 discover proxy; node logs debug",
         "uk": "Print fix; ESP32 discover proxy; node logs debug",
-        "zh-cn": "打印修复；ESP32 discover 代理；节点日志改为 debug"
+        "zh-cn": "\u6253\u5370\u4fee\u590d\uff1bESP32 discover \u4ee3\u7406\uff1b\u8282\u70b9\u65e5\u5fd7\u6539\u4e3a debug"
       },
       "0.9.6": {
         "en": "Assign display nodes via chips on meter cards in the Data tab",
-        "de": "Anzeige-Nodes per Chips auf den Zähler-Kacheln im Daten-Tab zuweisen",
+        "de": "Anzeige-Nodes per Chips auf den Z\u00e4hler-Kacheln im Daten-Tab zuweisen",
         "ru": "Assign nodes via chips on meter cards",
         "pt": "Assign nodes via chips on meter cards",
         "nl": "Nodes toewijzen via chips op meterkarten",
         "fr": "Assigner des nodes via des chips sur les cartes compteur",
         "it": "Assegna node tramite chip sulle card contatore",
         "es": "Asignar nodes mediante chips en las tarjetas de contador",
-        "pl": "Przypisywanie node przez chipy na kartach liczników",
-        "uk": "Призначення node через чіпи на картках лічильників",
-        "zh-cn": "在数据页计量表卡片上通过芯片分配显示节点"
-      },
-      "0.9.5": {
-        "en": "Correct history on re-sync; edit values in Web UI; print chart and apartment/house latest readings",
-        "de": "Historie bei erneutem Sync korrigieren; Werte in der Web-UI bearbeiten; Chart sowie Wohnungs-/Haus-Stände drucken",
-        "ru": "Correction of history; Web UI edit; print chart and readings",
-        "pt": "Correct history; Web UI edit; print",
-        "nl": "History corrigeren; Web UI edit; printen",
-        "fr": "Corriger l'historique; édition Web UI; impression",
-        "it": "Correggi cronologia; modifica Web UI; stampa",
-        "es": "Corregir historial; edición Web UI; imprimir",
-        "pl": "Korekta historii; edycja Web UI; druk",
-        "uk": "Корекція історії; редагування Web UI; друк",
-        "zh-cn": "更正历史记录；Web UI 编辑；打印图表与读数"
+        "pl": "Przypisywanie node przez chipy na kartach licznik\u00f3w",
+        "uk": "\u041f\u0440\u0438\u0437\u043d\u0430\u0447\u0435\u043d\u043d\u044f node \u0447\u0435\u0440\u0435\u0437 \u0447\u0456\u043f\u0438 \u043d\u0430 \u043a\u0430\u0440\u0442\u043a\u0430\u0445 \u043b\u0456\u0447\u0438\u043b\u044c\u043d\u0438\u043a\u0456\u0432",
+        "zh-cn": "\u5728\u6570\u636e\u9875\u8ba1\u91cf\u8868\u5361\u7247\u4e0a\u901a\u8fc7\u82af\u7247\u5206\u914d\u663e\u793a\u8282\u70b9"
       },
       "0.9.4": {
         "en": "Review fixes: English logs/states/API errors, Web UI i18n, config validation, removed /api/update",
         "de": "Review-Fixes: Englische Logs/States/API-Fehler, Web-UI-i18n, Config-Validierung, /api/update entfernt",
-        "ru": "Исправления review: английские логи/states/API, i18n Web UI, валидация config, удалён /api/update",
-        "pt": "Correções de review: logs/states/erros API em inglês, i18n Web UI, validação config, removido /api/update",
+        "ru": "\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f review: \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u0438\u0435 \u043b\u043e\u0433\u0438/states/API, i18n Web UI, \u0432\u0430\u043b\u0438\u0434\u0430\u0446\u0438\u044f config, \u0443\u0434\u0430\u043b\u0451\u043d /api/update",
+        "pt": "Corre\u00e7\u00f5es de review: logs/states/erros API em ingl\u00eas, i18n Web UI, valida\u00e7\u00e3o config, removido /api/update",
         "nl": "Review-fixes: Engelse logs/states/API-fouten, Web UI i18n, config-validatie, /api/update verwijderd",
-        "fr": "Corrections review : logs/states/erreurs API en anglais, i18n Web UI, validation config, /api/update supprimé",
+        "fr": "Corrections review : logs/states/erreurs API en anglais, i18n Web UI, validation config, /api/update supprim\u00e9",
         "it": "Correzioni review: log/states/errori API in inglese, i18n Web UI, validazione config, rimosso /api/update",
-        "es": "Correcciones de review: logs/states/errores API en inglés, i18n Web UI, validación config, eliminado /api/update",
-        "pl": "Poprawki review: angielskie logi/states/błędy API, i18n Web UI, walidacja config, usunięto /api/update",
-        "uk": "Виправлення review: англійські логи/states/API, i18n Web UI, валідація config, видалено /api/update",
-        "zh-cn": "审查修复：英文日志/states/API 错误、Web UI 国际化、配置验证、移除 /api/update"
+        "es": "Correcciones de review: logs/states/errores API en ingl\u00e9s, i18n Web UI, validaci\u00f3n config, eliminado /api/update",
+        "pl": "Poprawki review: angielskie logi/states/b\u0142\u0119dy API, i18n Web UI, walidacja config, usuni\u0119to /api/update",
+        "uk": "\u0412\u0438\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u044f review: \u0430\u043d\u0433\u043b\u0456\u0439\u0441\u044c\u043a\u0456 \u043b\u043e\u0433\u0438/states/API, i18n Web UI, \u0432\u0430\u043b\u0456\u0434\u0430\u0446\u0456\u044f config, \u0432\u0438\u0434\u0430\u043b\u0435\u043d\u043e /api/update",
+        "zh-cn": "\u5ba1\u67e5\u4fee\u590d\uff1a\u82f1\u6587\u65e5\u5fd7/states/API \u9519\u8bef\u3001Web UI \u56fd\u9645\u5316\u3001\u914d\u7f6e\u9a8c\u8bc1\u3001\u79fb\u9664 /api/update"
       },
       "0.9.3": {
         "en": "Fix state roles for ioBroker object structure check (date, text, json, info.firmware)",
-        "de": "State-Rollen für ioBroker-Objektstruktur-Prüfung korrigiert (date, text, json, info.firmware)",
-        "ru": "Исправлены роли states для проверки структуры объектов ioBroker",
-        "pt": "Corrigidas roles de states para verificação da estrutura de objetos ioBroker",
+        "de": "State-Rollen f\u00fcr ioBroker-Objektstruktur-Pr\u00fcfung korrigiert (date, text, json, info.firmware)",
+        "ru": "\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0440\u043e\u043b\u0438 states \u0434\u043b\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b \u043e\u0431\u044a\u0435\u043a\u0442\u043e\u0432 ioBroker",
+        "pt": "Corrigidas roles de states para verifica\u00e7\u00e3o da estrutura de objetos ioBroker",
         "nl": "State-rollen gecorrigeerd voor ioBroker objectstructuurcontrole",
-        "fr": "Rôles des states corrigés pour la vérification de structure d'objets ioBroker",
+        "fr": "R\u00f4les des states corrig\u00e9s pour la v\u00e9rification de structure d'objets ioBroker",
         "it": "Corrette le role degli state per il controllo struttura oggetti ioBroker",
-        "es": "Corregidos roles de states para verificación de estructura de objetos ioBroker",
-        "pl": "Poprawiono role states dla kontroli struktury obiektów ioBroker",
-        "uk": "Виправлено ролі states для перевірки структури об'єктів ioBroker",
-        "zh-cn": "修复 state 角色以通过 ioBroker 对象结构检查"
-      },
-      "0.9.2": {
-        "en": "Adapter checker compliance: npm news cleanup, devDependencies, trusted publishing",
-        "de": "Adapter-Checker-Konformität: npm-News bereinigt, devDependencies, Trusted Publishing",
-        "ru": "Соответствие adapter checker: очистка npm news, devDependencies, trusted publishing",
-        "pt": "Conformidade com adapter checker: limpeza npm news, devDependencies, trusted publishing",
-        "nl": "Adapter-checker conformiteit: npm news opgeschoond, devDependencies, trusted publishing",
-        "fr": "Conformité adapter checker : nettoyage npm news, devDependencies, trusted publishing",
-        "it": "Conformità adapter checker: pulizia npm news, devDependencies, trusted publishing",
-        "es": "Conformidad adapter checker: limpieza npm news, devDependencies, trusted publishing",
-        "pl": "Zgodność z adapter checker: czyszczenie npm news, devDependencies, trusted publishing",
-        "uk": "Відповідність adapter checker: очищення npm news, devDependencies, trusted publishing",
-        "zh-cn": "适配器检查器合规：清理 npm news、devDependencies、trusted publishing"
-      },
-      "0.9.1": {
-        "en": "Lowered admin dependency to >=7.6.20 (fixes startup with admin 7.7.x)",
-        "de": "Admin-Abhängigkeit auf >=7.6.20 gesenkt (behebt Start mit admin 7.7.x)",
-        "ru": "Снижена зависимость admin до >=7.6.20 (исправлен запуск с admin 7.7.x)",
-        "pt": "Dependência admin reduzida para >=7.6.20 (corrige inicialização com admin 7.7.x)",
-        "nl": "Admin-afhankelijkheid verlaagd naar >=7.6.20 (lost opstarten met admin 7.7.x op)",
-        "fr": "Dépendance admin abaissée à >=7.6.20 (corrige le démarrage avec admin 7.7.x)",
-        "it": "Dipendenza admin ridotta a >=7.6.20 (corregge avvio con admin 7.7.x)",
-        "es": "Dependencia admin reducida a >=7.6.20 (corrige inicio con admin 7.7.x)",
-        "pl": "Obniżono zależność admin do >=7.6.20 (naprawia start z admin 7.7.x)",
-        "uk": "Знижено залежність admin до >=7.6.20 (виправлено запуск з admin 7.7.x)",
-        "zh-cn": "降低 admin 依赖至 >=7.6.20（修复 admin 7.7.x 下无法启动）"
+        "es": "Corregidos roles de states para verificaci\u00f3n de estructura de objetos ioBroker",
+        "pl": "Poprawiono role states dla kontroli struktury obiekt\u00f3w ioBroker",
+        "uk": "\u0412\u0438\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u0440\u043e\u043b\u0456 states \u0434\u043b\u044f \u043f\u0435\u0440\u0435\u0432\u0456\u0440\u043a\u0438 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0438 \u043e\u0431'\u0454\u043a\u0442\u0456\u0432 ioBroker",
+        "zh-cn": "\u4fee\u590d state \u89d2\u8272\u4ee5\u901a\u8fc7 ioBroker \u5bf9\u8c61\u7ed3\u6784\u68c0\u67e5"
       }
     },
     "titleLang": {
@@ -136,16 +110,16 @@
     },
     "desc": {
       "en": "Receives meter readings from the MeterMaster Android app and manages ESP32 display nodes",
-      "de": "Empfängt Zählerablesungen von der MeterMaster Android-App und verwaltet ESP32 Display-Nodes",
-      "ru": "Принимает показания счётчиков из Android-приложения MeterMaster и управляет ESP32 display nodes",
-      "pt": "Recebe leituras de medidores do app Android MeterMaster e gerencia nós de display ESP32",
+      "de": "Empf\u00e4ngt Z\u00e4hlerablesungen von der MeterMaster Android-App und verwaltet ESP32 Display-Nodes",
+      "ru": "\u041f\u0440\u0438\u043d\u0438\u043c\u0430\u0435\u0442 \u043f\u043e\u043a\u0430\u0437\u0430\u043d\u0438\u044f \u0441\u0447\u0451\u0442\u0447\u0438\u043a\u043e\u0432 \u0438\u0437 Android-\u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f MeterMaster \u0438 \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u0442 ESP32 display nodes",
+      "pt": "Recebe leituras de medidores do app Android MeterMaster e gerencia n\u00f3s de display ESP32",
       "nl": "Ontvangt meterstanden van de MeterMaster Android-app en beheert ESP32 display nodes",
-      "fr": "Reçoit les relevés de compteurs de l'app Android MeterMaster et gère les nœuds d'affichage ESP32",
+      "fr": "Re\u00e7oit les relev\u00e9s de compteurs de l'app Android MeterMaster et g\u00e8re les n\u0153uds d'affichage ESP32",
       "it": "Riceve letture contatori dall'app Android MeterMaster e gestisce nodi display ESP32",
       "es": "Recibe lecturas de contadores de la app Android MeterMaster y gestiona nodos de display ESP32",
-      "pl": "Odbiera odczyty liczników z aplikacji Android MeterMaster i zarządza węzłami wyświetlacza ESP32",
-      "uk": "Отримує показники лічильників з Android-додатку MeterMaster та керує ESP32 display nodes",
-      "zh-cn": "接收 MeterMaster Android 应用的表计读数并管理 ESP32 显示节点"
+      "pl": "Odbiera odczyty licznik\u00f3w z aplikacji Android MeterMaster i zarz\u0105dza w\u0119z\u0142ami wy\u015bwietlacza ESP32",
+      "uk": "\u041e\u0442\u0440\u0438\u043c\u0443\u0454 \u043f\u043e\u043a\u0430\u0437\u043d\u0438\u043a\u0438 \u043b\u0456\u0447\u0438\u043b\u044c\u043d\u0438\u043a\u0456\u0432 \u0437 Android-\u0434\u043e\u0434\u0430\u0442\u043a\u0443 MeterMaster \u0442\u0430 \u043a\u0435\u0440\u0443\u0454 ESP32 display nodes",
+      "zh-cn": "\u63a5\u6536 MeterMaster Android \u5e94\u7528\u7684\u8868\u8ba1\u8bfb\u6570\u5e76\u7ba1\u7406 ESP32 \u663e\u793a\u8282\u70b9"
     },
     "authors": [
       "MPunktBPunkt"

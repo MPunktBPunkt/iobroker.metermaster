@@ -1,7 +1,7 @@
 {
   "name": "iobroker.metermaster",
-  "version": "0.9.9",
-  "description": "ioBroker adapter for the MeterMaster Android app – receives meter readings and manages ESP32 display nodes",
+  "version": "0.9.10",
+  "description": "ioBroker adapter for the MeterMaster Android app \u2013 receives meter readings and manages ESP32 display nodes",
   "author": {
     "name": "MPunktBPunkt",
     "url": "https://github.com/MPunktBPunkt"

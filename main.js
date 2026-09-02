@@ -4,7 +4,7 @@ const utils  = require('@iobroker/adapter-core');
 const http   = require('node:http');
 const crypto = require('node:crypto');
 const https  = require('node:https');
-const CURRENT_VERSION = '0.9.9';
+const CURRENT_VERSION = '0.9.10';
 const GITHUB_REPO     = 'MPunktBPunkt/ioBroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/ioBroker.metermaster';
 

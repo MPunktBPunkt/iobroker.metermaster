@@ -271,6 +271,27 @@ iobroker restart metermaster.0
 ### **WORK IN PROGRESS**
 - (ioBroker-Bot) Adapter requires admin >= 7.8.23 now.
 
+### 0.9.10
+- Repo checker (E2004/E6029): remove unpublished `0.9.5` from `common.news`
+- Trim `common.news` to 7 entries
+- Document releases 0.9.6–0.9.10 in README changelog
+
+### 0.9.9
+- Web UI: delete apartment/meter with password confirmation (DELETE API)
+- Collapsible house/apartment sections in the Data tab (localStorage)
+
+### 0.9.8
+- Log MeterMaster app connection tests from User-Agent on `/api/ping` at info level
+
+### 0.9.7
+- Print fix (Blob URL revoke)
+- ESP32 discover proxy (`getStates` / node-discover)
+- Node heartbeat/ack logs moved to debug
+
+### 0.9.6
+- Assign display nodes via chips on meter cards in the Data tab
+- Correct history on re-sync; edit values in Web UI; print chart and apartment/house latest readings
+
 ### 0.9.4
 - All adapter log messages and API JSON error responses in English
 - State common names and roles corrected (readings channel, date/text/json roles, info.firmware for nodes)
