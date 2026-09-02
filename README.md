@@ -56,6 +56,8 @@ Open the Web UI anytime at `http://{ioBroker-IP}:8089/` (no password required fo
 - **Full history** — every meter keeps a `readings.history` JSON array
 - **Basic Auth** — optional username/password protection for write endpoints
 - **Built-in Web UI** — Data, Import, Logs and System tabs in DE/EN
+- **Delete in Web UI** — remove apartments/meters from ioBroker (password confirm)
+- **Collapsible sections** — fold house/apartment blocks in the Data tab
 - **Charts & CSV** — history charts, monthly consumption and per-meter CSV export
 - **Backup import** — restore MeterMaster app backups (schema 2.0) via drag & drop
 
