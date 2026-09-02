@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "metermaster",
-    "version": "0.9.8",
+    "version": "0.9.9",
     "news": {
+      "0.9.9": {
+        "en": "Web UI: delete apartment/meter (password confirm); collapsible house/apartment sections",
+        "de": "Web-UI: Wohnung/Zähler löschen (Passwort-Bestätigung); Haus/Wohnung einklappbar",
+        "ru": "Web UI: delete apartment/meter; collapsible sections",
+        "pt": "Web UI: delete apartment/meter; collapsible sections",
+        "nl": "Web-UI: appartement/meter verwijderen; inklapbare secties",
+        "fr": "UI web : supprimer logement/compteur ; sections repliables",
+        "it": "Web UI: elimina appartamento/contatore; sezioni comprimibili",
+        "es": "Web UI: eliminar vivienda/contador; secciones plegables",
+        "pl": "Web UI: usuwanie mieszkania/licznika; zwijane sekcje",
+        "uk": "Web UI: delete apartment/meter; collapsible sections",
+        "zh-cn": "Web UI：删除公寓/表计；可折叠分区"
+      },
       "0.9.8": {
         "en": "Log MeterMaster app connection tests from User-Agent at info level",
         "de": "Verbindungstests der MeterMaster-App per User-Agent auf Info-Level loggen",

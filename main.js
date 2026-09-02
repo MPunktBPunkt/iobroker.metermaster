@@ -4,7 +4,7 @@ const utils  = require('@iobroker/adapter-core');
 const http   = require('node:http');
 const crypto = require('node:crypto');
 const https  = require('node:https');
-const CURRENT_VERSION = '0.9.8';
+const CURRENT_VERSION = '0.9.9';
 const GITHUB_REPO     = 'MPunktBPunkt/ioBroker.metermaster';
 const GITHUB_URL      = 'https://github.com/MPunktBPunkt/ioBroker.metermaster';
 
@@ -254,7 +254,7 @@ function startHttpServer() {
 
     server = http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin',  '*');
-        res.setHeader('Access-Control-Allow-Methods', 'POST, PUT, GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, PUT, GET, DELETE, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
@@ -333,6 +333,22 @@ function startHttpServer() {
         }
         else if (req.method === 'POST' && url === '/api/readings') { readBody(req, b => handleReadings(b, res, clientIp)); }
         else if (req.method === 'POST' && url === '/api/import')   { readBody(req, b => handleImport(b, res, clientIp)); }
+        else if (req.method === 'DELETE' && url.startsWith('/api/apartment/')) {
+            const parts = url.split('/').filter(Boolean); // api, apartment, house, apt
+            if (parts.length === 4) {
+                handleDeleteApartment(parts[2], parts[3], res, clientIp);
+            } else {
+                sendJson(res, 400, { error: 'Expected /api/apartment/{house}/{apartment}' });
+            }
+        }
+        else if (req.method === 'DELETE' && url.startsWith('/api/meter/')) {
+            const parts = url.split('/').filter(Boolean); // api, meter, house, apt, meter
+            if (parts.length === 5) {
+                handleDeleteMeter(parts[2], parts[3], parts[4], res, clientIp);
+            } else {
+                sendJson(res, 400, { error: 'Expected /api/meter/{house}/{apartment}/{meter}' });
+            }
+        }
         else {
             // Node-Config: POST /api/nodes/{MAC}/config
             const nodeMatch = url.match(/^\/api\/nodes\/([A-Fa-f0-9]+)\/config$/);
@@ -547,6 +563,62 @@ async function storeReading(data) {
     await adapter.setStateAsync('info.lastSync',         { val: Date.now(), ack: true });
     await adapter.setStateAsync('info.readingsReceived', { val: readingsReceived,         ack: true });
     return { path: base, history: histResult };
+}
+
+// ─── Löschen (Wohnung / Zähler) ───────────────────────────────────────────────
+async function handleDeleteApartment(houseRaw, aptRaw, res, clientIp) {
+    const house = sanitize(decodeURIComponent(houseRaw || ''));
+    const apt   = sanitize(decodeURIComponent(aptRaw || ''));
+    if (!house || !apt || house === 'unknown' || apt === 'unknown') {
+        sendJson(res, 400, { error: 'Invalid house or apartment' });
+        return;
+    }
+    const relId = `${house}.${apt}`;
+    try {
+        const existed = await adapter.getObjectAsync(relId).catch(() => null);
+        await adapter.delObjectAsync(relId, { recursive: true });
+        if (receivedData[house] && receivedData[house][apt]) {
+            delete receivedData[house][apt];
+            if (!Object.keys(receivedData[house]).length) {
+                delete receivedData[house];
+            }
+        }
+        log(LVL.INFO, CAT.DATAPOINT, `Apartment deleted`,
+            `${adapter.namespace}.${relId} | IP: ${clientIp}` + (existed ? '' : ' (objects already gone)'));
+        sendJson(res, 200, { ok: true, deleted: relId });
+    } catch (e) {
+        log(LVL.ERROR, CAT.DATAPOINT, `Apartment delete failed`, `${relId}: ${e.message}`);
+        sendJson(res, 500, { error: e.message });
+    }
+}
+
+async function handleDeleteMeter(houseRaw, aptRaw, meterRaw, res, clientIp) {
+    const house = sanitize(decodeURIComponent(houseRaw || ''));
+    const apt   = sanitize(decodeURIComponent(aptRaw || ''));
+    const meter = sanitize(decodeURIComponent(meterRaw || ''));
+    if (!house || !apt || !meter || house === 'unknown' || apt === 'unknown' || meter === 'unknown') {
+        sendJson(res, 400, { error: 'Invalid house, apartment or meter' });
+        return;
+    }
+    const relId = `${house}.${apt}.${meter}`;
+    try {
+        await adapter.delObjectAsync(relId, { recursive: true });
+        if (receivedData[house] && receivedData[house][apt] && receivedData[house][apt][meter]) {
+            delete receivedData[house][apt][meter];
+            if (!Object.keys(receivedData[house][apt]).length) {
+                delete receivedData[house][apt];
+            }
+            if (receivedData[house] && !Object.keys(receivedData[house]).length) {
+                delete receivedData[house];
+            }
+        }
+        log(LVL.INFO, CAT.DATAPOINT, `Meter deleted`,
+            `${adapter.namespace}.${relId} | IP: ${clientIp}`);
+        sendJson(res, 200, { ok: true, deleted: relId });
+    } catch (e) {
+        log(LVL.ERROR, CAT.DATAPOINT, `Meter delete failed`, `${relId}: ${e.message}`);
+        sendJson(res, 500, { error: e.message });
+    }
 }
 
 // ─── Historie ─────────────────────────────────────────────────────────────────
@@ -1136,6 +1208,9 @@ nav {
   margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
   padding-bottom: 8px; border-bottom: 1px solid var(--border);
 }
+.house-title .collapse-label { flex: 1; cursor: pointer; user-select: none; }
+.house-body { }
+.house-block.collapsed .house-body { display: none; }
 .apt-block  { margin-bottom: 14px; margin-left: 10px; }
 .apt-title  {
   font-size: .88em; font-weight: 600; color: var(--text-dim);
@@ -1143,6 +1218,22 @@ nav {
   border-left: 3px solid var(--primary-deep); background: var(--bg-surface);
   border-radius: 0 6px 6px 0;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.apt-title .collapse-label { flex: 1; cursor: pointer; user-select: none; }
+.apt-block.collapsed .meters-grid { display: none; }
+.collapse-toggle {
+  background: transparent; border: none; color: var(--text-dim);
+  cursor: pointer; font-size: .85em; padding: 2px 4px; line-height: 1;
+  min-width: 1.4em;
+}
+.collapse-toggle:hover { color: var(--secondary); }
+.apt-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.apt-delete-btn, .meter-delete-btn {
+  background: transparent; border: 1px solid transparent; color: var(--text-muted);
+  border-radius: 6px; padding: 2px 7px; cursor: pointer; font-size: .85em; line-height: 1.2;
+}
+.apt-delete-btn:hover, .meter-delete-btn:hover {
+  color: #EF9A9A; border-color: rgba(244,67,54,.4); background: rgba(244,67,54,.1);
 }
 .print-scope-btn {
   background: transparent; border: 1px solid var(--border); color: var(--text-dim);
@@ -1713,6 +1804,25 @@ input.search {
     </div>
   </div>
 </div>
+<!-- ══ DELETE-CONFIRM-MODAL ═══════════════════════════════════════════════════ -->
+<div id="delete-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,11,26,.85);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-surface);border:1px solid rgba(244,67,54,.45);border-radius:16px;padding:28px 32px;min-width:320px;max-width:440px;width:90%;">
+    <div id="delete-title" style="font-size:1.1em;font-weight:700;color:#EF9A9A;margin-bottom:8px;">\uD83D\uDDD1 Delete</div>
+    <div id="delete-msg" style="font-size:.86em;color:var(--text-dim);margin-bottom:14px;line-height:1.5;"></div>
+    <div id="delete-pass-hint" style="font-size:.78em;color:var(--text-muted);margin-bottom:6px;"></div>
+    <div style="margin-bottom:14px;">
+      <label id="delete-user-label" style="font-size:.82em;color:var(--text-dim);display:block;margin-bottom:4px;">Username</label>
+      <input id="delete-user" type="text" value="metermaster" style="width:100%;background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:8px 12px;border-radius:8px;font-size:.9em;outline:none;margin-bottom:10px;">
+      <label id="delete-pass-label" style="font-size:.82em;color:var(--text-dim);display:block;margin-bottom:4px;">Password</label>
+      <input id="delete-pass" type="password" style="width:100%;background:var(--bg-surface2);border:1px solid var(--border-light);color:var(--text);padding:8px 12px;border-radius:8px;font-size:.9em;outline:none;" onkeydown="if(event.key===\'Enter\')confirmDeleteAction()">
+    </div>
+    <div id="delete-err" style="font-size:.82em;color:var(--danger);min-height:18px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="delete-confirm-btn" onclick="confirmDeleteAction()" style="flex:1;background:#C62828;color:#fff;border:none;padding:9px;border-radius:9px;cursor:pointer;font-size:.9em;font-weight:600;"></button>
+      <button id="delete-cancel-btn" onclick="hideDeleteModal()" style="background:transparent;border:1px solid var(--border-light);color:var(--text-dim);padding:9px 16px;border-radius:9px;cursor:pointer;font-size:.9em;"></button>
+    </div>
+  </div>
+</div>
 
 <script>
 
@@ -1754,6 +1864,106 @@ async function authFetch(url, opts) {
   if (r.status === 401) { _authHeader = null; showLoginModal('\u274C ' + t('login_expired')); return null; }
   return r;
 }
+
+// ── Collapse state ──────────────────────────────────────────────────────────
+function loadCollapsedState() {
+  try { return JSON.parse(localStorage.getItem('mm-collapsed') || '{}') || {}; }
+  catch { return {}; }
+}
+function saveCollapsedState(map) {
+  try { localStorage.setItem('mm-collapsed', JSON.stringify(map)); } catch {}
+}
+function toggleCollapse(ckey) {
+  if (!ckey) return;
+  const map = loadCollapsedState();
+  map[ckey] = !map[ckey];
+  if (!map[ckey]) delete map[ckey];
+  saveCollapsedState(map);
+  const blocks = document.querySelectorAll('[data-ckey="'+CSS.escape(ckey)+'"]');
+  blocks.forEach(el => {
+    if (el.classList.contains('house-block') || el.classList.contains('apt-block')) {
+      el.classList.toggle('collapsed', !!map[ckey]);
+    }
+    if (el.classList.contains('collapse-toggle')) {
+      el.textContent = map[ckey] ? '\u25B6' : '\u25BC';
+      el.title = t(map[ckey] ? 'collapse_expand' : 'collapse_collapse');
+    }
+  });
+}
+
+// ── Delete apartment / meter ────────────────────────────────────────────────
+let _pendingDelete = null;
+
+function hideDeleteModal() {
+  document.getElementById('delete-overlay').style.display = 'none';
+  _pendingDelete = null;
+  const err = document.getElementById('delete-err');
+  if (err) err.textContent = '';
+  const pass = document.getElementById('delete-pass');
+  if (pass) pass.value = '';
+}
+
+function showDeleteModal(kind, house, apt, meter) {
+  _pendingDelete = { kind, house, apt, meter: meter || '' };
+  document.getElementById('delete-title').textContent =
+    '\uD83D\uDDD1 ' + (kind === 'meter' ? t('delete_meter_title') : t('delete_apt_title'));
+  document.getElementById('delete-msg').textContent = kind === 'meter'
+    ? t('delete_meter_msg', { meter })
+    : t('delete_apt_msg', { apt });
+  document.getElementById('delete-pass-hint').textContent = t('delete_pass_hint');
+  document.getElementById('delete-user-label').textContent = t('login_user');
+  document.getElementById('delete-pass-label').textContent = t('login_pass');
+  document.getElementById('delete-confirm-btn').textContent = t('delete_confirm');
+  document.getElementById('delete-cancel-btn').textContent = t('delete_cancel');
+  document.getElementById('delete-err').textContent = '';
+  const loginUser = document.getElementById('login-user');
+  if (loginUser && loginUser.value) {
+    document.getElementById('delete-user').value = loginUser.value;
+  }
+  document.getElementById('delete-overlay').style.display = 'flex';
+  window.setTimeout(() => document.getElementById('delete-pass').focus(), 50);
+}
+
+window.confirmDeleteAction = async function confirmDeleteAction() {
+  if (!_pendingDelete) return;
+  const user = (document.getElementById('delete-user').value || '').trim() || 'metermaster';
+  const pass = document.getElementById('delete-pass').value || '';
+  const { kind, house, apt, meter } = _pendingDelete;
+  const url = kind === 'meter'
+    ? '/api/meter/' + encodeURIComponent(house) + '/' + encodeURIComponent(apt) + '/' + encodeURIComponent(meter)
+    : '/api/apartment/' + encodeURIComponent(house) + '/' + encodeURIComponent(apt);
+  const btn = document.getElementById('delete-confirm-btn');
+  btn.disabled = true;
+  document.getElementById('delete-err').textContent = '';
+  try {
+    let r;
+    if (pass) {
+      setAuth(user, pass);
+      r = await authFetch(url, { method: 'DELETE' });
+      if (!r) { btn.disabled = false; return; }
+    } else {
+      r = await fetch(url, { method: 'DELETE' });
+      if (r.status === 401 || r.status === 403) {
+        document.getElementById('delete-err').textContent = t('delete_pass_hint');
+        btn.disabled = false;
+        return;
+      }
+    }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) {
+      document.getElementById('delete-err').textContent =
+        t('delete_failed') + ': ' + (d.error || ('HTTP ' + r.status));
+      btn.disabled = false;
+      return;
+    }
+    hideDeleteModal();
+    await fetchData();
+  } catch (e) {
+    document.getElementById('delete-err').textContent = t('delete_failed') + ': ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 const TYPE_ICONS = {
   Electricity:'\u26A1', Gas:'\uD83D\uDD25', Water:'\uD83D\uDCA7', HotWater:'\uD83C\uDF21',
@@ -1809,11 +2019,24 @@ const I18N = {
     sys_tip:'Tipp: Alle drei Befehle nacheinander ausf\u00FChren \u2014 warten bis jeder abgeschlossen ist.',
     copy:'Kopieren',
     login_title:'Anmelden',
-    login_desc:'Zugangsdaten f\u00FCr schreibende Aktionen (Z\u00E4hler zuweisen, Import).',
+    login_desc:'Zugangsdaten f\u00FCr schreibende Aktionen (Z\u00E4hler zuweisen, Import, L\u00F6schen).',
     login_user:'Benutzername', login_pass:'Passwort', login_submit:'Anmelden',
     login_missing_user:'Benutzername fehlt', login_wrong:'Falsche Zugangsdaten',
     login_conn_err:'Verbindungsfehler', login_expired:'Sitzung abgelaufen \u2013 bitte neu anmelden',
-    invalid_json:'Ung\u00FCltige JSON-Datei', network_err:'Netzwerkfehler'
+    invalid_json:'Ung\u00FCltige JSON-Datei', network_err:'Netzwerkfehler',
+    delete_apt_title:'Wohnung l\u00F6schen',
+    delete_apt_msg:'Wohnung \u201E{apt}\u201C inkl. aller Z\u00E4hler und Ablesungen in ioBroker unwiderruflich l\u00F6schen?',
+    delete_meter_title:'Z\u00E4hler l\u00F6schen',
+    delete_meter_msg:'Z\u00E4hler \u201E{meter}\u201C inkl. Verlauf in ioBroker unwiderruflich l\u00F6schen?',
+    delete_pass_hint:'Passwort aus den Adapter-Einstellungen eingeben.',
+    delete_confirm:'Endg\u00FCltig l\u00F6schen',
+    delete_cancel:'Abbrechen',
+    delete_ok:'Gel\u00F6scht.',
+    delete_failed:'L\u00F6schen fehlgeschlagen',
+    delete_apt_title_attr:'Wohnung in ioBroker l\u00F6schen',
+    delete_meter_title_attr:'Z\u00E4hler in ioBroker l\u00F6schen',
+    collapse_expand:'Aufklappen',
+    collapse_collapse:'Einklappen'
   },
   en: {
     readings:'Readings', nodes:'Nodes', uptime:'Uptime', live:'Live', disconnected:'Disconnected',
@@ -1862,11 +2085,24 @@ const I18N = {
     sys_tip:'Tip: Run all three commands in sequence \u2014 wait for each to finish.',
     copy:'Copy',
     login_title:'Sign in',
-    login_desc:'Credentials for write actions (assign meter, import).',
+    login_desc:'Credentials for write actions (assign meter, import, delete).',
     login_user:'Username', login_pass:'Password', login_submit:'Sign in',
     login_missing_user:'Username required', login_wrong:'Invalid credentials',
     login_conn_err:'Connection error', login_expired:'Session expired \u2013 please sign in again',
-    invalid_json:'Invalid JSON file', network_err:'Network error'
+    invalid_json:'Invalid JSON file', network_err:'Network error',
+    delete_apt_title:'Delete apartment',
+    delete_apt_msg:'Permanently delete apartment "{apt}" including all meters and readings in ioBroker?',
+    delete_meter_title:'Delete meter',
+    delete_meter_msg:'Permanently delete meter "{meter}" including history in ioBroker?',
+    delete_pass_hint:'Enter the password from the adapter settings.',
+    delete_confirm:'Delete permanently',
+    delete_cancel:'Cancel',
+    delete_ok:'Deleted.',
+    delete_failed:'Delete failed',
+    delete_apt_title_attr:'Delete apartment in ioBroker',
+    delete_meter_title_attr:'Delete meter in ioBroker',
+    collapse_expand:'Expand',
+    collapse_collapse:'Collapse'
   }
 };
 
@@ -2407,12 +2643,29 @@ async function fetchData() {
     }
     let html = '';
     let idx = 0;
+    const collapsed = loadCollapsedState();
     for (const [house, apts] of Object.entries(d.data)) {
-      html += '<div class="house-block"><div class="house-title"><span>\uD83C\uDFE0 '+esc(house)+'</span>'+
-        '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" title="'+esc(t('print_house'))+'">\uD83D\uDDA8</button></div>';
+      const houseKey = 'h:' + house;
+      const houseCollapsed = !!collapsed[houseKey];
+      html += '<div class="house-block'+(houseCollapsed ? ' collapsed' : '')+'" data-ckey="'+esc(houseKey)+'">'+
+        '<div class="house-title">'+
+          '<button type="button" class="collapse-toggle" data-ckey="'+esc(houseKey)+'" title="'+esc(t(houseCollapsed ? 'collapse_expand' : 'collapse_collapse'))+'">'+(houseCollapsed ? '\u25B6' : '\u25BC')+'</button>'+
+          '<span class="collapse-label" data-ckey="'+esc(houseKey)+'">\uD83C\uDFE0 '+esc(house)+'</span>'+
+          '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" title="'+esc(t('print_house'))+'">\uD83D\uDDA8</button>'+
+        '</div><div class="house-body">';
       for (const [apt, meters] of Object.entries(apts)) {
-        html += '<div class="apt-block"><div class="apt-title"><span>\uD83C\uDFD8 '+esc(apt)+'</span>'+
-          '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" data-print-apt="'+esc(apt)+'" title="'+esc(t('print_apartment'))+'">\uD83D\uDDA8</button></div><div class="meters-grid">';
+        const aptKey = 'a:' + house + '/' + apt;
+        const aptCollapsed = !!collapsed[aptKey];
+        const meterCount = Object.keys(meters).length;
+        html += '<div class="apt-block'+(aptCollapsed ? ' collapsed' : '')+'" data-ckey="'+esc(aptKey)+'">'+
+          '<div class="apt-title">'+
+            '<button type="button" class="collapse-toggle" data-ckey="'+esc(aptKey)+'" title="'+esc(t(aptCollapsed ? 'collapse_expand' : 'collapse_collapse'))+'">'+(aptCollapsed ? '\u25B6' : '\u25BC')+'</button>'+
+            '<span class="collapse-label" data-ckey="'+esc(aptKey)+'">\uD83C\uDFD8 '+esc(apt)+' <span style="opacity:.6;font-weight:500">('+meterCount+')</span></span>'+
+            '<span class="apt-actions">'+
+              '<button type="button" class="print-scope-btn" data-print-house="'+esc(house)+'" data-print-apt="'+esc(apt)+'" title="'+esc(t('print_apartment'))+'">\uD83D\uDDA8</button>'+
+              '<button type="button" class="apt-delete-btn" data-house="'+esc(house)+'" data-apt="'+esc(apt)+'" title="'+esc(t('delete_apt_title_attr'))+'">\uD83D\uDDD1</button>'+
+            '</span>'+
+          '</div><div class="meters-grid">';
         for (const [key, m] of Object.entries(meters)) {
           const cacheIdx = idx++;
           dataCacheList.push({ house, apartment: apt, meter: key, unit: m.unit, typeName: m.typeName, latest: m.latest, latestDate: m.latestDate, history: m.history || [] });
@@ -2445,7 +2698,10 @@ async function fetchData() {
             '<div class="meter-card'+(assignedHere ? ' has-node' : '')+'">'+
               '<div class="mc-head">'+
                 '<div class="mc-name">'+icon+' '+esc(key)+'</div>'+
-                '<div class="mc-badge">'+esc(m.typeName||'?')+'</div>'+
+                '<div style="display:flex;align-items:center;gap:6px;">'+
+                  '<div class="mc-badge">'+esc(m.typeName||'?')+'</div>'+
+                  '<button type="button" class="meter-delete-btn" data-house="'+esc(house)+'" data-apt="'+esc(apt)+'" data-meter="'+esc(key)+'" title="'+esc(t('delete_meter_title_attr'))+'">\uD83D\uDDD1</button>'+
+                '</div>'+
               '</div>'+
               '<div class="mc-value-row">'+
                 '<span class="mc-value">'+(m.latest !== undefined ? m.latest : '\u2013')+'</span>'+
@@ -2463,7 +2719,7 @@ async function fetchData() {
         }
         html += '</div></div>';
       }
-      html += '</div>';
+      html += '</div></div>';
     }
     con.innerHTML = html;
   } catch(e) {
@@ -2871,6 +3127,29 @@ function initTabs() {
     if (btn && btn.dataset.hist) toggleHist(btn.dataset.hist);
   });
 
+  // Collapse house / apartment
+  document.addEventListener('click', e => {
+    const toggle = e.target.closest('.collapse-toggle, .collapse-label');
+    if (!toggle || !toggle.dataset.ckey) return;
+    e.preventDefault();
+    toggleCollapse(toggle.dataset.ckey);
+  });
+
+  // Delete apartment / meter
+  document.addEventListener('click', e => {
+    const aptDel = e.target.closest('.apt-delete-btn');
+    if (aptDel) {
+      e.stopPropagation();
+      showDeleteModal('apartment', aptDel.dataset.house, aptDel.dataset.apt);
+      return;
+    }
+    const meterDel = e.target.closest('.meter-delete-btn');
+    if (meterDel) {
+      e.stopPropagation();
+      showDeleteModal('meter', meterDel.dataset.house, meterDel.dataset.apt, meterDel.dataset.meter);
+    }
+  });
+
   // History value edit
   document.addEventListener('click', e => {
     const editBtn = e.target.closest('.hist-edit-btn');
@@ -2928,7 +3207,7 @@ function initTabs() {
   if (langSel) langSel.addEventListener('change', e => setLang(e.target.value));
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeChartModal();
+    if (e.key === 'Escape') { closeChartModal(); hideDeleteModal(); }
   });
 
   // Nodes-Speichern via Event Delegation (kein onclick-Attribut mit Escaping-Problemen)
