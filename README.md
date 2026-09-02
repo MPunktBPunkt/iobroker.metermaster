@@ -212,6 +212,8 @@ metermaster.0.
 | POST | `/api/reading` | Store a single reading |
 | POST | `/api/readings` | Store batch readings |
 | POST | `/api/import` | Import app backup |
+| DELETE | `/api/apartment/{house}/{apartment}` | Delete apartment channel tree |
+| DELETE | `/api/meter/{house}/{apartment}/{meter}` | Delete single meter |
 | GET/POST | `/api/nodes/{MAC}/config` | Get / set ESP32 config |
 | POST | `/api/nodes/{MAC}/configAck` | Config acknowledgement |
 | POST | `/api/nodes/{MAC}/cmd` | Immediate command (e.g. LED) |
